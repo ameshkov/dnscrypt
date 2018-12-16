@@ -26,5 +26,5 @@ Here is a simple usage example:
     reply, rtt, err := client.Exchange(&req, serverInfo)
 
 Unfortunately, I have not found an easy way to use dnscrypt-proxy as a dependency so here's why this library was created.
- */
+*/
 package dnscrypt

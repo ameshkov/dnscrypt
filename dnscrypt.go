@@ -20,13 +20,16 @@ import (
 	"golang.org/x/crypto/nacl/secretbox"
 )
 
-// Encryption algorithm (either XSalsa20Poly1305 or XChacha20Poly1305)
+// CryptoConstruction represents the encryption algorithm (either XSalsa20Poly1305 or XChacha20Poly1305)
 type CryptoConstruction uint16
 
 const (
-	UndefinedConstruction CryptoConstruction = iota // Default value for empty CertInfo only
-	XSalsa20Poly1305                                // Salsa20Poly1305 encryption
-	XChacha20Poly1305                               // Chacha20Poly1305 encryption
+	// Default value for empty CertInfo only
+	UndefinedConstruction CryptoConstruction = iota
+	// Salsa20Poly1305 encryption
+	XSalsa20Poly1305
+	// Chacha20Poly1305 encryption
+	XChacha20Poly1305
 )
 
 var (

@@ -24,11 +24,11 @@ import (
 type CryptoConstruction uint16
 
 const (
-	// Default value for empty CertInfo only
+	// UndefinedConstruction is the default value for empty CertInfo only
 	UndefinedConstruction CryptoConstruction = iota
-	// Salsa20Poly1305 encryption
+	// XSalsa20Poly1305 encryption
 	XSalsa20Poly1305
-	// Chacha20Poly1305 encryption
+	// XChacha20Poly1305 encryption
 	XChacha20Poly1305
 )
 

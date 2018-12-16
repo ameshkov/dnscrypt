@@ -20,54 +20,53 @@ import (
 	"golang.org/x/crypto/nacl/secretbox"
 )
 
+// Encryption algorithm (either XSalsa20Poly1305 or XChacha20Poly1305)
 type CryptoConstruction uint16
 
 const (
-	UndefinedConstruction CryptoConstruction = iota
-	XSalsa20Poly1305
-	XChacha20Poly1305
+	UndefinedConstruction CryptoConstruction = iota // Default value for empty CertInfo only
+	XSalsa20Poly1305                                // Salsa20Poly1305 encryption
+	XChacha20Poly1305                               // Chacha20Poly1305 encryption
 )
 
 var (
-	CertMagic           = [4]byte{0x44, 0x4e, 0x53, 0x43}
-	ServerMagic         = [8]byte{0x72, 0x36, 0x66, 0x6e, 0x76, 0x57, 0x6a, 0x38}
-	MinDNSPacketSize    = 12 + 5
-	MaxDNSPacketSize    = 4096
-	MaxDNSUDPPacketSize = 1252
+	certMagic           = [4]byte{0x44, 0x4e, 0x53, 0x43}
+	serverMagic         = [8]byte{0x72, 0x36, 0x66, 0x6e, 0x76, 0x57, 0x6a, 0x38}
+	minDNSPacketSize    = 12 + 5
+	maxDNSPacketSize    = 4096
+	maxDNSUDPPacketSize = 1252
 )
 
 const (
-	ClientMagicLen = 8
-)
-
-const (
-	NonceSize        = xsecretbox.NonceSize
-	HalfNonceSize    = xsecretbox.NonceSize / 2
-	TagSize          = xsecretbox.TagSize
-	PublicKeySize    = 32
-	QueryOverhead    = ClientMagicLen + PublicKeySize + HalfNonceSize + TagSize
-	ResponseOverhead = len(ServerMagic) + NonceSize + TagSize
+	clientMagicLen   = 8
+	nonceSize        = xsecretbox.NonceSize
+	halfNonceSize    = xsecretbox.NonceSize / 2
+	tagSize          = xsecretbox.TagSize
+	publicKeySize    = 32
+	queryOverhead    = clientMagicLen + publicKeySize + halfNonceSize + tagSize
+	responseOverhead = len(serverMagic) + nonceSize + tagSize
 
 	// Some servers do not work if padded length is less than 256. Example: Quad9
-	MinQuestionSize = 256
+	minUdpQuestionSize = 256
 )
 
+// Client contains parameters for a DNSCrypt client
 type Client struct {
 	Proto   string        // Protocol ("udp" or "tcp")
 	Timeout time.Duration // Timeout for read/write operations
 }
 
-// DnsCrypt server certificate data
+// CertInfo contains DnsCrypt server certificate data retrieved from the server
 type CertInfo struct {
 	Serial             uint32
 	ServerPk           [32]byte
 	SharedKey          [32]byte
-	MagicQuery         [ClientMagicLen]byte
+	MagicQuery         [clientMagicLen]byte
 	CryptoConstruction CryptoConstruction
 	ForwardSecurity    bool
 }
 
-// DNSCrypt server information necessary for decryption/encryption
+// ServerInfo contains DNSCrypt server information necessary for decryption/encryption
 type ServerInfo struct {
 	SecretKey       [32]byte          // Client secret key
 	PublicKey       [32]byte          // Client public key
@@ -79,7 +78,7 @@ type ServerInfo struct {
 	ServerCert *CertInfo // Certificate info (obtained with the first unencrypted DNS request)
 }
 
-// Fetches and validates DNSCrypt certificate from the given server
+// Dial fetches and validates DNSCrypt certificate from the given server
 // Data received during this call is then used for DNS requests encryption/decryption
 // stampStr is an sdns:// address which is parsed using go-dnsstamps package
 func (c *Client) Dial(stampStr string) (*ServerInfo, time.Duration, error) {
@@ -97,7 +96,7 @@ func (c *Client) Dial(stampStr string) (*ServerInfo, time.Duration, error) {
 	return c.DialStamp(stamp)
 }
 
-// Fetches and validates DNSCrypt certificate from the given server
+// DialStamp fetches and validates DNSCrypt certificate from the given server
 // Data received during this call is then used for DNS requests encryption/decryption
 func (c *Client) DialStamp(stamp dnsstamps.ServerStamp) (*ServerInfo, time.Duration, error) {
 
@@ -129,7 +128,7 @@ func (c *Client) DialStamp(stamp dnsstamps.ServerStamp) (*ServerInfo, time.Durat
 	return &serverInfo, rtt, nil
 }
 
-// Performs a synchronous DNS query to the specified DNSCrypt server and returns a DNS response.
+// Exchange performs a synchronous DNS query to the specified DNSCrypt server and returns a DNS response.
 // This method creates a new network connection for every call so avoid using it for TCP.
 // DNSCrypt server information needs to be fetched and validated prior to this call using the c.DialStamp method.
 func (c *Client) Exchange(m *dns.Msg, s *ServerInfo) (*dns.Msg, time.Duration, error) {
@@ -150,7 +149,7 @@ func (c *Client) Exchange(m *dns.Msg, s *ServerInfo) (*dns.Msg, time.Duration, e
 	return r, rtt, nil
 }
 
-// Performs a synchronous DNS query to the specified DNSCrypt server and returns a DNS response.
+// ExchangeConn performs a synchronous DNS query to the specified DNSCrypt server and returns a DNS response.
 // DNSCrypt server information needs to be fetched and validated prior to this call using the c.DialStamp method
 func (c *Client) ExchangeConn(m *dns.Msg, s *ServerInfo, conn net.Conn) (*dns.Msg, time.Duration, error) {
 	now := time.Now()
@@ -175,7 +174,7 @@ func (c *Client) ExchangeConn(m *dns.Msg, s *ServerInfo, conn net.Conn) (*dns.Ms
 
 	conn.SetDeadline(time.Now().Add(c.Timeout))
 	conn.Write(encryptedQuery)
-	encryptedResponse := make([]byte, MaxDNSPacketSize)
+	encryptedResponse := make([]byte, maxDNSPacketSize)
 
 	if c.Proto == "tcp" {
 		encryptedResponse, err = readPrefixed(conn)
@@ -210,17 +209,17 @@ func (c *Client) ExchangeConn(m *dns.Msg, s *ServerInfo, conn net.Conn) (*dns.Ms
 // See https://github.com/jedisct1/dnscrypt-proxy/blob/master/dnscrypt-proxy/plugin_get_set_payload_size.go
 // TODO: I don't really understand why it is required :)
 func (c *Client) adjustPayloadSize(msg *dns.Msg) {
-	originalMaxPayloadSize := 512 - ResponseOverhead
+	originalMaxPayloadSize := 512 - responseOverhead
 	edns0 := msg.IsEdns0()
 	dnssec := false
 	if edns0 != nil {
-		originalMaxPayloadSize = min(int(edns0.UDPSize())-ResponseOverhead, originalMaxPayloadSize)
+		originalMaxPayloadSize = min(int(edns0.UDPSize())-responseOverhead, originalMaxPayloadSize)
 		dnssec = edns0.Do()
 	}
 	var options *[]dns.EDNS0
 
-	maxPayloadSize := MaxDNSUDPPacketSize - ResponseOverhead
-	maxPayloadSize = min(MaxDNSUDPPacketSize-ResponseOverhead, max(originalMaxPayloadSize, maxPayloadSize))
+	maxPayloadSize := maxDNSUDPPacketSize - responseOverhead
+	maxPayloadSize = min(maxDNSUDPPacketSize-responseOverhead, max(originalMaxPayloadSize, maxPayloadSize))
 
 	if maxPayloadSize > 512 {
 		var extra2 []dns.RR
@@ -251,7 +250,7 @@ func (s *ServerInfo) fetchCurrentDNSCryptCert(timeout time.Duration) (CertInfo, 
 
 	query := new(dns.Msg)
 	query.SetQuestion(s.ProviderName, dns.TypeTXT)
-	client := dns.Client{Net: s.Proto, UDPSize: uint16(MaxDNSUDPPacketSize), Timeout: timeout}
+	client := dns.Client{Net: s.Proto, UDPSize: uint16(maxDNSUDPPacketSize), Timeout: timeout}
 	in, rtt, err := client.Exchange(query, s.ServerAddress)
 	if err != nil {
 		return CertInfo{}, 0, err
@@ -292,31 +291,31 @@ func (s *ServerInfo) fetchCurrentDNSCryptCert(timeout time.Duration) (CertInfo, 
 }
 
 func (s *ServerInfo) encrypt(packet []byte) (encrypted []byte, clientNonce []byte, err error) {
-	nonce, clientNonce := make([]byte, NonceSize), make([]byte, HalfNonceSize)
+	nonce, clientNonce := make([]byte, nonceSize), make([]byte, halfNonceSize)
 	rand.Read(clientNonce)
 	copy(nonce, clientNonce)
-	var publicKey *[PublicKeySize]byte
+	var publicKey *[publicKeySize]byte
 
 	sharedKey := &s.ServerCert.SharedKey
 	publicKey = &s.PublicKey
 
-	minQuestionSize := QueryOverhead + len(packet)
+	minQuestionSize := queryOverhead + len(packet)
 	if s.Proto == "udp" {
-		minQuestionSize = max(MinQuestionSize, minQuestionSize)
+		minQuestionSize = max(minUdpQuestionSize, minQuestionSize)
 	} else {
 		var xpad [1]byte
 		rand.Read(xpad[:])
 		minQuestionSize += int(xpad[0])
 	}
-	paddedLength := min(MaxDNSUDPPacketSize, (max(minQuestionSize, QueryOverhead)+63) & ^63)
+	paddedLength := min(maxDNSUDPPacketSize, (max(minQuestionSize, queryOverhead)+63) & ^63)
 
-	if QueryOverhead+len(packet)+1 > paddedLength {
+	if queryOverhead+len(packet)+1 > paddedLength {
 		err = errors.New("question too large; cannot be padded")
 		return
 	}
 	encrypted = append(s.ServerCert.MagicQuery[:], publicKey[:]...)
-	encrypted = append(encrypted, nonce[:HalfNonceSize]...)
-	padded := pad(packet, paddedLength-QueryOverhead)
+	encrypted = append(encrypted, nonce[:halfNonceSize]...)
+	padded := pad(packet, paddedLength-queryOverhead)
 	if s.ServerCert.CryptoConstruction == XChacha20Poly1305 {
 		encrypted = xsecretbox.Seal(encrypted, nonce, padded, sharedKey[:])
 	} else {
@@ -330,15 +329,15 @@ func (s *ServerInfo) encrypt(packet []byte) (encrypted []byte, clientNonce []byt
 func (s *ServerInfo) decrypt(encrypted []byte, nonce []byte) ([]byte, error) {
 
 	sharedKey := &s.ServerCert.SharedKey
-	serverMagicLen := len(ServerMagic)
-	responseHeaderLen := serverMagicLen + NonceSize
-	if len(encrypted) < responseHeaderLen+TagSize+int(MinDNSPacketSize) ||
-		len(encrypted) > responseHeaderLen+TagSize+int(MaxDNSPacketSize) ||
-		!bytes.Equal(encrypted[:serverMagicLen], ServerMagic[:]) {
+	serverMagicLen := len(serverMagic)
+	responseHeaderLen := serverMagicLen + nonceSize
+	if len(encrypted) < responseHeaderLen+tagSize+int(minDNSPacketSize) ||
+		len(encrypted) > responseHeaderLen+tagSize+int(maxDNSPacketSize) ||
+		!bytes.Equal(encrypted[:serverMagicLen], serverMagic[:]) {
 		return encrypted, errors.New("invalid message size or prefix")
 	}
 	serverNonce := encrypted[serverMagicLen:responseHeaderLen]
-	if !bytes.Equal(nonce[:HalfNonceSize], serverNonce[:HalfNonceSize]) {
+	if !bytes.Equal(nonce[:halfNonceSize], serverNonce[:halfNonceSize]) {
 		return encrypted, errors.New("unexpected nonce")
 	}
 	var packet []byte
@@ -358,7 +357,7 @@ func (s *ServerInfo) decrypt(encrypted []byte, nonce []byte) ([]byte, error) {
 		return encrypted, err
 	}
 	packet, err = unpad(packet)
-	if err != nil || len(packet) < MinDNSPacketSize {
+	if err != nil || len(packet) < minDNSPacketSize {
 		return encrypted, errors.New("incorrect padding")
 	}
 	return packet, nil
@@ -378,7 +377,7 @@ func txtToCertInfo(answerRr dns.RR, serverInfo *ServerInfo) (CertInfo, error) {
 	if len(binCert) < 124 {
 		return certInfo, errors.New("certificate is too short")
 	}
-	if !bytes.Equal(binCert[:4], CertMagic[:4]) {
+	if !bytes.Equal(binCert[:4], certMagic[:4]) {
 		return certInfo, errors.New("invalid cert magic")
 	}
 
@@ -388,7 +387,7 @@ func txtToCertInfo(answerRr dns.RR, serverInfo *ServerInfo) (CertInfo, error) {
 	case 0x0002:
 		certInfo.CryptoConstruction = XChacha20Poly1305
 	default:
-		return certInfo, errors.New(fmt.Sprintf("unsupported crypto construction: %v", esVersion))
+		return certInfo, fmt.Errorf("unsupported crypto construction: %v", esVersion)
 	}
 
 	// Verify the server public key
@@ -404,7 +403,7 @@ func txtToCertInfo(answerRr dns.RR, serverInfo *ServerInfo) (CertInfo, error) {
 	tsBegin := binary.BigEndian.Uint32(binCert[116:120])
 	tsEnd := binary.BigEndian.Uint32(binCert[120:124])
 	if tsBegin >= tsEnd {
-		return certInfo, errors.New(fmt.Sprintf("certificate ends before it starts (%v >= %v)", tsBegin, tsEnd))
+		return certInfo, fmt.Errorf("certificate ends before it starts (%v >= %v)", tsBegin, tsEnd)
 	}
 	if now > tsEnd || now < tsBegin {
 		return certInfo, errors.New("certificate not valid at the current date")
@@ -523,7 +522,7 @@ func prefixWithSize(packet []byte) ([]byte, error) {
 }
 
 func readPrefixed(conn net.Conn) ([]byte, error) {
-	buf := make([]byte, 2+MaxDNSPacketSize)
+	buf := make([]byte, 2+maxDNSPacketSize)
 	packetLength, pos := -1, 0
 	for {
 		readnb, err := conn.Read(buf[pos:])
@@ -533,10 +532,10 @@ func readPrefixed(conn net.Conn) ([]byte, error) {
 		pos += readnb
 		if pos >= 2 && packetLength < 0 {
 			packetLength = int(binary.BigEndian.Uint16(buf[0:2]))
-			if packetLength > MaxDNSPacketSize-1 {
+			if packetLength > maxDNSPacketSize-1 {
 				return buf, errors.New("packet too large")
 			}
-			if packetLength < MinDNSPacketSize {
+			if packetLength < minDNSPacketSize {
 				return buf, errors.New("packet too short")
 			}
 		}

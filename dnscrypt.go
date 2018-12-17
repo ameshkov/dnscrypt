@@ -179,6 +179,9 @@ func (c *Client) ExchangeConn(m *dns.Msg, s *ServerInfo, conn net.Conn) (*dns.Ms
 	conn.Write(encryptedQuery)
 	encryptedResponse := make([]byte, maxDNSPacketSize)
 
+	// Reading the response
+	// In case if the server ServerInfo is not valid anymore (for instance, certificate was rotated) the read operation will most likely time out.
+	// This might be a signal to re-dial for the server certificate.
 	if c.Proto == "tcp" {
 		encryptedResponse, err = readPrefixed(conn)
 		if err != nil {
@@ -194,7 +197,6 @@ func (c *Client) ExchangeConn(m *dns.Msg, s *ServerInfo, conn net.Conn) (*dns.Ms
 
 	decrypted, err := s.decrypt(encryptedResponse, clientNonce)
 	if err != nil {
-		// TODO: we should somehow distinguish this case as we might need to re-dial for the server certificate when it happens
 		return nil, 0, err
 	}
 

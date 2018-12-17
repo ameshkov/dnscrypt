@@ -23,7 +23,7 @@ Here is a simple usage example:
     }
 
     // Get the DNS response
-    reply, rtt, err := client.Exchange(&req, serverInfo)
+    reply, rtt, err := c.Exchange(&req, serverInfo)
 
 Unfortunately, I have not found an easy way to use dnscrypt-proxy as a dependency so here's why this library was created.
 */

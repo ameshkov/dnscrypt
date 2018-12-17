@@ -31,5 +31,5 @@ Unfortunately, I have not found an easy way to use [dnscrypt-proxy](https://gith
     }
     
     // Get the DNS response
-    reply, rtt, err := client.Exchange(&req, serverInfo)
+    reply, rtt, err := c.Exchange(&req, serverInfo)
 ```

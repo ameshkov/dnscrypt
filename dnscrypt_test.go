@@ -102,7 +102,7 @@ func checkDnsCryptServer(t *testing.T, stampStr string, proto string) {
 		t.Fatalf("Could not establish connection with %s", stampStr)
 	}
 
-	log.Printf("Established a connection with %s, rtt=%v, proto=%s", serverInfo.ProviderName, rtt, proto)
+	log.Printf("Established a connection with %s, ttl=%v, rtt=%v, proto=%s", serverInfo.ProviderName, time.Unix(int64(serverInfo.ServerCert.NotAfter), 0), rtt, proto)
 	req := dns.Msg{}
 	req.Id = dns.Id()
 	req.RecursionDesired = true

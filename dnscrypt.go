@@ -61,12 +61,13 @@ type Client struct {
 
 // CertInfo contains DnsCrypt server certificate data retrieved from the server
 type CertInfo struct {
-	Serial             uint32
-	ServerPk           [32]byte
-	SharedKey          [32]byte
+	Serial             uint32   // Cert serial number (the cert can be superseded by another one with a higher serial number)
+	ServerPk           [32]byte // Server public key
+	SharedKey          [32]byte // Shared key
 	MagicQuery         [clientMagicLen]byte
-	CryptoConstruction CryptoConstruction
-	ForwardSecurity    bool
+	CryptoConstruction CryptoConstruction // Encryption algorithm
+	NotBefore          uint32             // Cert is valid starting from this date (epoch time)
+	NotAfter           uint32             // Cert is valid until this date (epoch time)
 }
 
 // ServerInfo contains DNSCrypt server information necessary for decryption/encryption
@@ -405,20 +406,13 @@ func txtToCertInfo(answerRr dns.RR, serverInfo *ServerInfo) (CertInfo, error) {
 	certInfo.Serial = binary.BigEndian.Uint32(binCert[112:116])
 
 	// Validate the certificate date
-	tsBegin := binary.BigEndian.Uint32(binCert[116:120])
-	tsEnd := binary.BigEndian.Uint32(binCert[120:124])
-	if tsBegin >= tsEnd {
-		return certInfo, fmt.Errorf("certificate ends before it starts (%v >= %v)", tsBegin, tsEnd)
+	certInfo.NotBefore = binary.BigEndian.Uint32(binCert[116:120])
+	certInfo.NotAfter = binary.BigEndian.Uint32(binCert[120:124])
+	if certInfo.NotBefore >= certInfo.NotAfter {
+		return certInfo, fmt.Errorf("certificate ends before it starts (%v >= %v)", certInfo.NotBefore, certInfo.NotAfter)
 	}
-	if now > tsEnd || now < tsBegin {
+	if now > certInfo.NotAfter || now < certInfo.NotBefore {
 		return certInfo, errors.New("certificate not valid at the current date")
-	}
-
-	ttl := tsEnd - tsBegin
-	if ttl > 86400*7 {
-		certInfo.ForwardSecurity = false
-	} else {
-		certInfo.ForwardSecurity = true
 	}
 
 	var serverPk [32]byte

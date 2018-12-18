@@ -41,22 +41,24 @@ var (
 )
 
 const (
-	clientMagicLen   = 8
-	nonceSize        = xsecretbox.NonceSize
-	halfNonceSize    = xsecretbox.NonceSize / 2
-	tagSize          = xsecretbox.TagSize
-	publicKeySize    = 32
-	queryOverhead    = clientMagicLen + publicKeySize + halfNonceSize + tagSize
-	responseOverhead = len(serverMagic) + nonceSize + tagSize
+	clientMagicLen = 8
+	nonceSize      = xsecretbox.NonceSize
+	halfNonceSize  = xsecretbox.NonceSize / 2
+	tagSize        = xsecretbox.TagSize
+	publicKeySize  = 32
+	queryOverhead  = clientMagicLen + publicKeySize + halfNonceSize + tagSize
 
+	// <min-query-len> is a variable length, initially set to 256 bytes, and
+	// must be a multiple of 64 bytes. (see https://dnscrypt.info/protocol)
 	// Some servers do not work if padded length is less than 256. Example: Quad9
 	minUdpQuestionSize = 256
 )
 
 // Client contains parameters for a DNSCrypt client
 type Client struct {
-	Proto   string        // Protocol ("udp" or "tcp")
-	Timeout time.Duration // Timeout for read/write operations
+	Proto             string        // Protocol ("udp" or "tcp"). Empty means "udp".
+	Timeout           time.Duration // Timeout for read/write operations
+	AdjustPayloadSize bool          // If true, the client will automatically add a EDNS0 RR that will advertise a larger buffer
 }
 
 // CertInfo contains DnsCrypt server certificate data retrieved from the server
@@ -113,7 +115,12 @@ func (c *Client) DialStamp(stamp dnsstamps.ServerStamp) (*ServerInfo, time.Durat
 	curve25519.ScalarBaseMult(&serverInfo.PublicKey, &serverInfo.SecretKey)
 
 	// Set the provider properties
-	serverInfo.Proto = c.Proto
+	proto := c.Proto
+	if proto == "" {
+		proto = "udp"
+	}
+
+	serverInfo.Proto = proto
 	serverInfo.ServerPublicKey = stamp.ServerPk
 	serverInfo.ServerAddress = stamp.ServerAddrStr
 	serverInfo.ProviderName = stamp.ProviderName
@@ -138,7 +145,7 @@ func (c *Client) DialStamp(stamp dnsstamps.ServerStamp) (*ServerInfo, time.Durat
 func (c *Client) Exchange(m *dns.Msg, s *ServerInfo) (*dns.Msg, time.Duration, error) {
 
 	now := time.Now()
-	conn, err := net.Dial(c.Proto, s.ServerAddress)
+	conn, err := net.Dial(s.Proto, s.ServerAddress)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -158,7 +165,9 @@ func (c *Client) Exchange(m *dns.Msg, s *ServerInfo) (*dns.Msg, time.Duration, e
 func (c *Client) ExchangeConn(m *dns.Msg, s *ServerInfo, conn net.Conn) (*dns.Msg, time.Duration, error) {
 	now := time.Now()
 
-	c.adjustPayloadSize(m)
+	if c.AdjustPayloadSize {
+		c.adjustPayloadSize(m)
+	}
 	query, err := m.Pack()
 	if err != nil {
 		return nil, 0, err
@@ -213,21 +222,20 @@ func (c *Client) ExchangeConn(m *dns.Msg, s *ServerInfo, conn net.Conn) (*dns.Ms
 
 // Adjusts the maximum payload size advertised in queries sent to upstream servers
 // See https://github.com/jedisct1/dnscrypt-proxy/blob/master/dnscrypt-proxy/plugin_get_set_payload_size.go
-// TODO: I don't really understand why it is required :)
+// See here also: https://github.com/jedisct1/dnscrypt-proxy/issues/667
 func (c *Client) adjustPayloadSize(msg *dns.Msg) {
-	originalMaxPayloadSize := 512 - responseOverhead
+	originalMaxPayloadSize := dns.MinMsgSize
 	edns0 := msg.IsEdns0()
 	dnssec := false
 	if edns0 != nil {
-		originalMaxPayloadSize = min(int(edns0.UDPSize())-responseOverhead, originalMaxPayloadSize)
+		originalMaxPayloadSize = int(edns0.UDPSize())
 		dnssec = edns0.Do()
 	}
 	var options *[]dns.EDNS0
 
-	maxPayloadSize := maxDNSUDPPacketSize - responseOverhead
-	maxPayloadSize = min(maxDNSUDPPacketSize-responseOverhead, max(originalMaxPayloadSize, maxPayloadSize))
+	maxPayloadSize := min(maxDNSUDPPacketSize, originalMaxPayloadSize)
 
-	if maxPayloadSize > 512 {
+	if maxPayloadSize > dns.MinMsgSize {
 		var extra2 []dns.RR
 		for _, extra := range msg.Extra {
 			if extra.Header().Rrtype != dns.TypeOPT {

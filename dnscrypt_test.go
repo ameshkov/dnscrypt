@@ -42,61 +42,108 @@ func TestParseStamp(t *testing.T) {
 	log.Println("")
 }
 
+func TestInvalidStamp(t *testing.T) {
+
+	client := Client{}
+	_, _, err := client.Dial("sdns://AQIAAAAAAAAAFDE")
+	if err == nil {
+		t.Fatalf("Dial must not have been possible")
+	}
+}
+
+func TestTimeoutOnDialError(t *testing.T) {
+
+	// AdGuard DNS pointing to a wrong IP
+	stampStr := "sdns://AQIAAAAAAAAADDguOC44Ljg6NTQ0MyDRK0fyUtzywrv4mRCG6vec5EldixbIoMQyLlLKPzkIcyIyLmRuc2NyeXB0LmRlZmF1bHQubnMxLmFkZ3VhcmQuY29t"
+	client := Client{Timeout: 300 * time.Millisecond}
+
+	_, _, err := client.Dial(stampStr)
+	if err == nil {
+		t.Fatalf("Dial must not have been possible")
+	}
+
+	if err, ok := err.(net.Error); !ok || !err.Timeout() {
+		t.Fatalf("Not the timeout error")
+	}
+}
+
+func TestTimeoutOnDialExchange(t *testing.T) {
+
+	// AdGuard DNS
+	stampStr := "sdns://AQIAAAAAAAAAFDE3Ni4xMDMuMTMwLjEzMDo1NDQzINErR_JS3PLCu_iZEIbq95zkSV2LFsigxDIuUso_OQhzIjIuZG5zY3J5cHQuZGVmYXVsdC5uczEuYWRndWFyZC5jb20"
+	client := Client{Timeout: 300 * time.Millisecond}
+
+	serverInfo, _, err := client.Dial(stampStr)
+	if err != nil {
+		t.Fatalf("Could not establish connection with %s", stampStr)
+	}
+
+	// Point it to an IP where there's no DNSCrypt server
+	serverInfo.ServerAddress = "8.8.8.8:5443"
+	req := dns.Msg{}
+	req.Id = dns.Id()
+	req.RecursionDesired = true
+	req.Question = []dns.Question{
+		{Name: "google-public-dns-a.google.com.", Qtype: dns.TypeA, Qclass: dns.ClassINET},
+	}
+
+	//
+	_, _, err = client.Exchange(&req, serverInfo)
+
+	if err == nil {
+		t.Fatalf("Exchange must not have been possible")
+	}
+
+	if err, ok := err.(net.Error); !ok || !err.Timeout() {
+		t.Fatalf("Not the timeout error")
+	}
+}
+
 func TestDnsCryptResolver(t *testing.T) {
 
 	stamps := []struct {
 		stampStr string
-		udp      bool
 	}{
 		{
 			// AdGuard DNS
 			stampStr: "sdns://AQIAAAAAAAAAFDE3Ni4xMDMuMTMwLjEzMDo1NDQzINErR_JS3PLCu_iZEIbq95zkSV2LFsigxDIuUso_OQhzIjIuZG5zY3J5cHQuZGVmYXVsdC5uczEuYWRndWFyZC5jb20",
-			udp:      true,
 		},
 		{
 			// AdGuard DNS Family
 			stampStr: "sdns://AQIAAAAAAAAAFDE3Ni4xMDMuMTMwLjEzMjo1NDQzILgxXdexS27jIKRw3C7Wsao5jMnlhvhdRUXWuMm1AFq6ITIuZG5zY3J5cHQuZmFtaWx5Lm5zMS5hZGd1YXJkLmNvbQ",
-			udp:      true,
 		},
 		{
 			// Cisco OpenDNS
 			stampStr: "sdns://AQAAAAAAAAAADjIwOC42Ny4yMjAuMjIwILc1EUAgbyJdPivYItf9aR6hwzzI1maNDL4Ev6vKQ_t5GzIuZG5zY3J5cHQtY2VydC5vcGVuZG5zLmNvbQ",
-			udp:      true,
 		},
 		{
 			// Cisco OpenDNS Family Shield
 			stampStr: "sdns://AQAAAAAAAAAADjIwOC42Ny4yMjAuMTIzILc1EUAgbyJdPivYItf9aR6hwzzI1maNDL4Ev6vKQ_t5GzIuZG5zY3J5cHQtY2VydC5vcGVuZG5zLmNvbQ",
-			udp:      true,
 		},
 		{
 			// Quad9 (anycast) dnssec/no-log/filter 9.9.9.9
 			stampStr: "sdns://AQMAAAAAAAAADDkuOS45Ljk6ODQ0MyBnyEe4yHWM0SAkVUO-dWdG3zTfHYTAC4xHA2jfgh2GPhkyLmRuc2NyeXB0LWNlcnQucXVhZDkubmV0",
-			udp:      true,
 		},
 		{
 			// https://securedns.eu/
 			stampStr: "sdns://AQcAAAAAAAAAEzE0Ni4xODUuMTY3LjQzOjUzNTMgs6WXaRRXWwSJ4Z-unEPmefryjFcYlwAxf3u0likfsJUcMi5kbnNjcnlwdC1jZXJ0LnNlY3VyZWRucy5ldQ",
-			udp:      true,
 		},
 		{
 			// Yandex DNS
 			stampStr: "sdns://AQQAAAAAAAAAEDc3Ljg4LjguNzg6MTUzNTMg04TAccn3RmKvKszVe13MlxTUB7atNgHhrtwG1W1JYyciMi5kbnNjcnlwdC1jZXJ0LmJyb3dzZXIueWFuZGV4Lm5ldA",
-			udp:      true,
 		},
 	}
 
 	for _, test := range stamps {
 
-		if test.udp {
-			checkDnsCryptServer(t, test.stampStr, "udp")
-		}
+		checkDnsCryptServer(t, test.stampStr, "")
 		checkDnsCryptServer(t, test.stampStr, "tcp")
 	}
 }
 
 func checkDnsCryptServer(t *testing.T, stampStr string, proto string) {
 
-	client := Client{Proto: proto, Timeout: 10 * time.Second}
+	client := Client{Proto: proto, Timeout: 10 * time.Second, AdjustPayloadSize: true}
 	serverInfo, rtt, err := client.Dial(stampStr)
 	if err != nil {
 		t.Fatalf("Could not establish connection with %s", stampStr)

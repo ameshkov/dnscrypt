@@ -11,7 +11,6 @@ import (
 )
 
 func TestParseStamp(t *testing.T) {
-
 	// Google DoH
 	stampStr := "sdns://AgUAAAAAAAAAAAAOZG5zLmdvb2dsZS5jb20NL2V4cGVyaW1lbnRhbA"
 	stamp, err := dnsstamps.NewServerStampFromString(stampStr)
@@ -43,7 +42,6 @@ func TestParseStamp(t *testing.T) {
 }
 
 func TestInvalidStamp(t *testing.T) {
-
 	client := Client{}
 	_, _, err := client.Dial("sdns://AQIAAAAAAAAAFDE")
 	if err == nil {
@@ -52,7 +50,6 @@ func TestInvalidStamp(t *testing.T) {
 }
 
 func TestTimeoutOnDialError(t *testing.T) {
-
 	// AdGuard DNS pointing to a wrong IP
 	stampStr := "sdns://AQIAAAAAAAAADDguOC44Ljg6NTQ0MyDRK0fyUtzywrv4mRCG6vec5EldixbIoMQyLlLKPzkIcyIyLmRuc2NyeXB0LmRlZmF1bHQubnMxLmFkZ3VhcmQuY29t"
 	client := Client{Timeout: 300 * time.Millisecond}
@@ -68,7 +65,6 @@ func TestTimeoutOnDialError(t *testing.T) {
 }
 
 func TestTimeoutOnDialExchange(t *testing.T) {
-
 	// AdGuard DNS
 	stampStr := "sdns://AQIAAAAAAAAAFDE3Ni4xMDMuMTMwLjEzMDo1NDQzINErR_JS3PLCu_iZEIbq95zkSV2LFsigxDIuUso_OQhzIjIuZG5zY3J5cHQuZGVmYXVsdC5uczEuYWRndWFyZC5jb20"
 	client := Client{Timeout: 300 * time.Millisecond}
@@ -100,7 +96,6 @@ func TestTimeoutOnDialExchange(t *testing.T) {
 }
 
 func TestDnsCryptResolver(t *testing.T) {
-
 	stamps := []struct {
 		stampStr string
 	}{
@@ -135,14 +130,14 @@ func TestDnsCryptResolver(t *testing.T) {
 	}
 
 	for _, test := range stamps {
-
-		checkDnsCryptServer(t, test.stampStr, "")
-		checkDnsCryptServer(t, test.stampStr, "tcp")
+		t.Run(test.stampStr, func(t *testing.T) {
+			checkDNSCryptServer(t, test.stampStr, "")
+			checkDNSCryptServer(t, test.stampStr, "tcp")
+		})
 	}
 }
 
-func checkDnsCryptServer(t *testing.T, stampStr string, proto string) {
-
+func checkDNSCryptServer(t *testing.T, stampStr string, proto string) {
 	client := Client{Proto: proto, Timeout: 10 * time.Second, AdjustPayloadSize: true}
 	serverInfo, rtt, err := client.Dial(stampStr)
 	if err != nil {

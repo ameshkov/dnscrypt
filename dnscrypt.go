@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ameshkov/dnscrypt/xsecretbox"
 	"github.com/jedisct1/go-dnsstamps"
-	"github.com/jedisct1/xsecretbox"
 	"github.com/miekg/dns"
 	"golang.org/x/crypto/curve25519"
 	"golang.org/x/crypto/ed25519"
@@ -51,7 +51,7 @@ const (
 	// <min-query-len> is a variable length, initially set to 256 bytes, and
 	// must be a multiple of 64 bytes. (see https://dnscrypt.info/protocol)
 	// Some servers do not work if padded length is less than 256. Example: Quad9
-	minUdpQuestionSize = 256
+	minUDPQuestionSize = 256
 )
 
 // Client contains parameters for a DNSCrypt client
@@ -198,9 +198,9 @@ func (c *Client) ExchangeConn(m *dns.Msg, s *ServerInfo, conn net.Conn) (*dns.Ms
 			return nil, 0, err
 		}
 	} else {
-		length, err := conn.Read(encryptedResponse)
-		if err != nil {
-			return nil, 0, err
+		length, readErr := conn.Read(encryptedResponse)
+		if readErr != nil {
+			return nil, 0, readErr
 		}
 		encryptedResponse = encryptedResponse[:length]
 	}
@@ -315,7 +315,7 @@ func (s *ServerInfo) encrypt(packet []byte) (encrypted []byte, clientNonce []byt
 
 	minQuestionSize := queryOverhead + len(packet)
 	if s.Proto == "udp" {
-		minQuestionSize = max(minUdpQuestionSize, minQuestionSize)
+		minQuestionSize = max(minUDPQuestionSize, minQuestionSize)
 	} else {
 		var xpad [1]byte
 		rand.Read(xpad[:])
@@ -378,7 +378,6 @@ func (s *ServerInfo) decrypt(encrypted []byte, nonce []byte) ([]byte, error) {
 }
 
 func txtToCertInfo(answerRr dns.RR, serverInfo *ServerInfo) (CertInfo, error) {
-
 	now := uint32(time.Now().Unix())
 	certInfo := CertInfo{CryptoConstruction: UndefinedConstruction}
 

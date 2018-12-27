@@ -57,7 +57,7 @@ const (
 // Client contains parameters for a DNSCrypt client
 type Client struct {
 	Proto             string        // Protocol ("udp" or "tcp"). Empty means "udp".
-	Timeout           time.Duration // Timeout for read/write operations
+	Timeout           time.Duration // Timeout for read/write operations (0 means infinite timeout)
 	AdjustPayloadSize bool          // If true, the client will automatically add a EDNS0 RR that will advertise a larger buffer
 }
 
@@ -185,7 +185,9 @@ func (c *Client) ExchangeConn(m *dns.Msg, s *ServerInfo, conn net.Conn) (*dns.Ms
 		}
 	}
 
-	conn.SetDeadline(time.Now().Add(c.Timeout))
+	if c.Timeout > 0 {
+		conn.SetDeadline(time.Now().Add(c.Timeout))
+	}
 	conn.Write(encryptedQuery)
 	encryptedResponse := make([]byte, maxDNSPacketSize)
 

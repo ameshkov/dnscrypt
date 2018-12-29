@@ -2,10 +2,8 @@ github.com/aead/chacha20 v0.0.0-20180709150244-8b13a72661da h1:KjTM2ks9d14ZYCvmH
 github.com/aead/chacha20 v0.0.0-20180709150244-8b13a72661da/go.mod h1:eHEWzANqSiWQsof+nXEI9bUVUyV6F53Fp89EuCh2EAA=
 github.com/aead/poly1305 v0.0.0-20180717145839-3fee0db0b635 h1:52m0LGchQBBVqJRyYYufQuIbVqRawmubW3OFGqK1ekw=
 github.com/aead/poly1305 v0.0.0-20180717145839-3fee0db0b635/go.mod h1:lmLxL+FV291OopO93Bwf9fQLQeLyt33VJRUg5VJ30us=
-github.com/jedisct1/go-dnsstamps v0.0.0-20180418170050-1e4999280f86 h1:Olj4M6T1omUfx7yTTcnhLf4xo6gYMmRHSJIfeA1NZy0=
-github.com/jedisct1/go-dnsstamps v0.0.0-20180418170050-1e4999280f86/go.mod h1:j/ONpSHHmPgDwmFKXg9vhQvIjADe/ft1X4a3TVOmp9g=
-github.com/jedisct1/xsecretbox v0.0.0-20180508184500-7a679c0bcd9a h1:2nyBWKszM41RO/gt5ElUXigAFiRgJ9KifHDlWOlw0lc=
-github.com/jedisct1/xsecretbox v0.0.0-20180508184500-7a679c0bcd9a/go.mod h1:YlN58h704uRFD0BwsEGTq+7Wx+WG2i7P49bc+HwHyAY=
+github.com/ameshkov/dnsstamps v1.0.0 h1:mZROsXx5tWIioNI4Z2cIdpagoCtQFa5ktB9CWuoh46M=
+github.com/ameshkov/dnsstamps v1.0.0/go.mod h1:Ii3eUu73dx4Vw5O4wjzmT5+lkCwovjzaEZZ4gKyIH5A=
 github.com/miekg/dns v1.1.1 h1:DVkblRdiScEnEr0LR9nTnEQqHYycjkXW9bOjd+2EL2o=
 github.com/miekg/dns v1.1.1/go.mod h1:W1PPwlIAgtquWBMBEV9nkV9Cazfe8ScdGz/Lj7v3Nrg=
 golang.org/x/crypto v0.0.0-20181203042331-505ab145d0a9 h1:mKdxBk7AujPs8kU4m80U72y/zjbZ3UcXC7dClwKbUI0=

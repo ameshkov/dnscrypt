@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/ameshkov/dnscrypt/xsecretbox"
-	"github.com/jedisct1/go-dnsstamps"
+	"github.com/ameshkov/dnsstamps"
 	"github.com/miekg/dns"
 	"golang.org/x/crypto/curve25519"
 	"golang.org/x/crypto/ed25519"

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jedisct1/go-dnsstamps"
+	"github.com/ameshkov/dnsstamps"
 	"github.com/miekg/dns"
 )
 

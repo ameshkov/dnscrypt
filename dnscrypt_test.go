@@ -3,6 +3,7 @@ package dnscrypt
 import (
 	"log"
 	"net"
+	"os"
 	"testing"
 	"time"
 
@@ -59,7 +60,7 @@ func TestTimeoutOnDialError(t *testing.T) {
 		t.Fatalf("Dial must not have been possible")
 	}
 
-	if err, ok := err.(net.Error); !ok || !err.Timeout() {
+	if !os.IsTimeout(err) {
 		t.Fatalf("Not the timeout error")
 	}
 }
@@ -90,7 +91,7 @@ func TestTimeoutOnDialExchange(t *testing.T) {
 		t.Fatalf("Exchange must not have been possible")
 	}
 
-	if err, ok := err.(net.Error); !ok || !err.Timeout() {
+	if !os.IsTimeout(err) {
 		t.Fatalf("Not the timeout error")
 	}
 }
@@ -119,10 +120,6 @@ func TestDnsCryptResolver(t *testing.T) {
 		//	// Quad9 (anycast) dnssec/no-log/filter 9.9.9.9
 		//	stampStr: "sdns://AQMAAAAAAAAADDkuOS45Ljk6ODQ0MyBnyEe4yHWM0SAkVUO-dWdG3zTfHYTAC4xHA2jfgh2GPhkyLmRuc2NyeXB0LWNlcnQucXVhZDkubmV0",
 		//},
-		{
-			// https://securedns.eu/
-			stampStr: "sdns://AQcAAAAAAAAAEzE0Ni4xODUuMTY3LjQzOjUzNTMgs6WXaRRXWwSJ4Z-unEPmefryjFcYlwAxf3u0likfsJUcMi5kbnNjcnlwdC1jZXJ0LnNlY3VyZWRucy5ldQ",
-		},
 		{
 			// Yandex DNS
 			stampStr: "sdns://AQQAAAAAAAAAEDc3Ljg4LjguNzg6MTUzNTMg04TAccn3RmKvKszVe13MlxTUB7atNgHhrtwG1W1JYyciMi5kbnNjcnlwdC1jZXJ0LmJyb3dzZXIueWFuZGV4Lm5ldA",

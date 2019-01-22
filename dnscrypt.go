@@ -235,7 +235,7 @@ func (c *Client) adjustPayloadSize(msg *dns.Msg) {
 	}
 	var options *[]dns.EDNS0
 
-	maxPayloadSize := min(maxDNSUDPPacketSize, originalMaxPayloadSize)
+	maxPayloadSize := min(maxDNSUDPPacketSize, max(originalMaxPayloadSize, maxDNSUDPPacketSize))
 
 	if maxPayloadSize > dns.MinMsgSize {
 		var extra2 []dns.RR

@@ -39,6 +39,7 @@ func TestParseStamp(t *testing.T) {
 	log.Printf("ProviderName=%s\n", stamp.ProviderName)
 	log.Printf("Path=%s\n", stamp.Path)
 	log.Printf("ServerAddrStr=%s\n", stamp.ServerAddrStr)
+	log.Printf("ServerPk len=%d\n", len(stamp.ServerPk))
 	log.Println("")
 }
 

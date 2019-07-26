@@ -37,7 +37,7 @@ var (
 	serverMagic         = [8]byte{0x72, 0x36, 0x66, 0x6e, 0x76, 0x57, 0x6a, 0x38}
 	minDNSPacketSize    = 12 + 5
 	maxDNSPacketSize    = 4096
-	maxDNSUDPPacketSize = 1252
+	maxDNSUDPPacketSize = 4096
 )
 
 const (

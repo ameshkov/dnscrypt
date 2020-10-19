@@ -4,7 +4,7 @@ import (
 	"io/ioutil"
 
 	"github.com/AdguardTeam/golibs/log"
-	"github.com/ameshkov/dnscrypt"
+	"github.com/ameshkov/dnscrypt/v2"
 	"gopkg.in/yaml.v3"
 )
 

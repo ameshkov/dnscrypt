@@ -8,7 +8,7 @@ import (
 	"syscall"
 
 	"github.com/AdguardTeam/golibs/log"
-	"github.com/ameshkov/dnscrypt"
+	"github.com/ameshkov/dnscrypt/v2"
 	"github.com/miekg/dns"
 	"gopkg.in/yaml.v3"
 )

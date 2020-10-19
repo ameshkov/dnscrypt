@@ -6,7 +6,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/ameshkov/dnscrypt/xsecretbox"
+	"github.com/ameshkov/dnscrypt/v2/xsecretbox"
 	"golang.org/x/crypto/nacl/secretbox"
 )
 

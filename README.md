@@ -1,3 +1,8 @@
+[![Build Status](https://travis-ci.com/ameshkov/dnscrypt.svg?branch=master)](https://travis-ci.com/ameshkov/dnscrypt)
+[![Code Coverage](https://img.shields.io/codecov/c/github/ameshkov/dnscrypt/master.svg)](https://codecov.io/github/ameshkov/dnscrypt?branch=master)
+[![Go Report Card](https://goreportcard.com/badge/github.com/ameshkov/dnscrypt)](https://goreportcard.com/report/ameshkov/dnscrypt)
+[![Go Doc](https://godoc.org/github.com/ameshkov/dnscrypt?status.svg)](https://godoc.org/github.com/ameshkov/dnscrypt)
+
 # DNSCrypt Go
 
 Golang-implementation of the [DNSCrypt v2 protocol](https://dnscrypt.info/protocol).
@@ -5,6 +10,7 @@ Golang-implementation of the [DNSCrypt v2 protocol](https://dnscrypt.info/protoc
 This repo includes everything you need to work with DNSCrypt. You can run your own resolver, make DNS lookups to other DNSCrypt resolvers, and you can use it as a library in your own projects.
 
 * [Command-line tool](#commandline)
+    * [How to install](#install)
     * [Running a server](#runningserver)
     * [Making lookups](#lookup)
 * [Programming interface](#api)
@@ -16,6 +22,11 @@ This repo includes everything you need to work with DNSCrypt. You can run your o
 `dnscrypt` is a helper tool that can work as a DNSCrypt client or server.
 
 Please note, that even though this tool can work as a server, it's purpose is merely testing. Use [dnsproxy](https://github.com/AdguardTeam/dnsproxy) or [AdGuard Home](https://github.com/AdguardTeam/AdGuardHome) for real-life purposes.
+
+
+### <a id="install"></a> How to install
+
+Download and unpack an archive for your platform from the [latest release](https://github.com/ameshkov/dnscrypt/releases).
 
 ### <a id="runningserver"></a> Running a server
 

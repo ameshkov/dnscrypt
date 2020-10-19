@@ -1,4 +1,4 @@
-module github.com/ameshkov/dnscrypt
+module github.com/ameshkov/dnscrypt/v2
 
 require (
 	github.com/AdguardTeam/golibs v0.4.2

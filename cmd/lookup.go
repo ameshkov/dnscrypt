@@ -14,13 +14,15 @@ import (
 
 // LookupStampArgs - "lookup-stamp" command arguments
 type LookupStampArgs struct {
-	Stamp  string `short:"s" long:"stamp" description:"DNSCrypt resolver stamp" required:"true"`
-	Domain string `short:"d" long:"domain" description:"Domain to resolve" required:"true"`
-	Type   string `short:"t" long:"type" description:"DNS query type" default:"A"`
+	Network string `short:"n" long:"network" description:"network type (tcp/udp)" default:"udp"`
+	Stamp   string `short:"s" long:"stamp" description:"DNSCrypt resolver stamp" required:"true"`
+	Domain  string `short:"d" long:"domain" description:"Domain to resolve" required:"true"`
+	Type    string `short:"t" long:"type" description:"DNS query type" default:"A"`
 }
 
 // LookupArgs - "lookup" command arguments
 type LookupArgs struct {
+	Network      string `short:"n" long:"network" description:"network type (tcp/udp)" default:"udp"`
 	ProviderName string `short:"p" long:"provider-name" description:"DNSCrypt resolver provider name" required:"true"`
 	PublicKey    string `short:"k" long:"public-key" description:"DNSCrypt resolver public key" required:"true"`
 	ServerAddr   string `short:"a" long:"addr" description:"Resolver address (IP[:port]). By default, the port is 443" required:"true"`
@@ -55,16 +57,17 @@ func lookup(args LookupArgs) {
 	}
 
 	lookupStamp(LookupStampArgs{
-		Stamp:  stamp.String(),
-		Domain: args.Domain,
-		Type:   args.Type,
+		Network: args.Network,
+		Stamp:   stamp.String(),
+		Domain:  args.Domain,
+		Type:    args.Type,
 	})
 }
 
 // lookupStamp - performs a DNS lookup, prints DNSCrypt cert info and lookup results
 func lookupStamp(args LookupStampArgs) {
 	c := &dnscrypt.Client{
-		Net:     "udp",
+		Net:     args.Network,
 		Timeout: 10 * time.Second,
 	}
 	ri, err := c.Dial(args.Stamp)

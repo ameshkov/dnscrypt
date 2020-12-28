@@ -88,6 +88,11 @@ You can also send a DNSCrypt request using a command that does not require stamp
     --type=a
 ```
 
+In both cases, you can specify the transport using the 'network' flag (`udp` default)
+```
+./dnscrypt lookup-stamp --network={tcp|udp} ...
+```
+
 ## <a id="api"></a> Programming interface
 
 ### <a id="client"></a> Client

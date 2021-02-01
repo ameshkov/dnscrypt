@@ -13,6 +13,7 @@ This repo includes everything you need to work with DNSCrypt. You can run your o
     * [How to install](#install)
     * [Running a server](#runningserver)
     * [Making lookups](#lookup)
+    * [Making config from dnscrypt-wrapper generated keys](convertfromwrapper)
 * [Programming interface](#api)
     * [Client](#client)
     * [Server](#server)
@@ -91,6 +92,18 @@ You can also send a DNSCrypt request using a command that does not require stamp
 In both cases, you can specify the transport using the 'network' flag (`udp` default)
 ```
 ./dnscrypt lookup-stamp --network={tcp|udp} ...
+```
+
+### <a id="convertfromwrapper"></a> Making config from dnscrypt-wrapper generated keys 
+
+Keys generated using dnscrypt-wrapper can be converted to config.yaml by running the command:
+
+```
+./dnscrypt convert-dnscrypt-wrapper \
+--private-key=secret.key \
+--resolver-sk-key=resolver.key \
+--provider-name=2.dnscrypt-cert.example.com \
+--out=config.yaml
 ```
 
 ## <a id="api"></a> Programming interface

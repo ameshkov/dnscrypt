@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/ed25519"
+	"fmt"
 	"io/ioutil"
 	"time"
 
@@ -13,8 +14,8 @@ import (
 
 // ConvertWrapperArgs - "convert-dnscrypt-wrapper" command arguments
 type ConvertWrapperArgs struct {
-	PrivateKeyFile string `short:"p" long:"private-key" description:"DNSCrypt resolver private key file for certificate sign" required:"true"`
-	ResolverSkFile string `short:"r" long:"resolver-sk-key" description:"Short-term private key file for encrypt/decrypt dns queries" required:"true"`
+	PrivateKeyFile string `short:"p" long:"private-key" description:"DNSCrypt resolver private key that is used for signing certificates" required:"true"`
+	ResolverSkFile string `short:"r" long:"resolver-sk-key" description:"Short-term private key file that is used for encrypt/decrypt dns queries" required:"true"`
 	ProviderName   string `short:"n" long:"provider-name" description:"DNSCrypt provider name" required:"true"`
 	Out            string `short:"o" long:"out" description:"Path to the resulting config file" required:"true"`
 	CertificateTTL int    `short:"t" long:"ttl" description:"Certificate time-to-live (seconds)"`
@@ -31,37 +32,66 @@ func convertWrapper(args ConvertWrapperArgs) {
 		ProviderName:   args.ProviderName,
 	}
 
+	// make PrivateKey
 	var privateKey ed25519.PrivateKey
 	privateKey = getFileContent(args.PrivateKeyFile)
 	if len(privateKey) != ed25519.PrivateKeySize {
 		log.Fatal("Invalid private key.")
 	}
 	rc.PrivateKey = dnscrypt.HexEncodeKey(privateKey)
-	rc.PublicKey = dnscrypt.HexEncodeKey(privateKey.Public().(ed25519.PublicKey))
 
+	// make PublicKey
+	publicKey := privateKey.Public().(ed25519.PublicKey)
+	rc.PublicKey = dnscrypt.HexEncodeKey(publicKey)
+
+	// make ResolverSk
 	var resolverSecret ed25519.PrivateKey
 	resolverSecret = getFileContent(args.ResolverSkFile)
+	if len(resolverSecret) != 32 {
+		log.Fatal("Invalid resolver secret key.")
+	}
 	rc.ResolverSk = dnscrypt.HexEncodeKey(resolverSecret)
-	rc.ResolverPk = dnscrypt.HexEncodeKey(getResolverPk(resolverSecret))
+
+	// make ResolverPk
+	resolverPublic := getResolverPk(resolverSecret)
+	rc.ResolverPk = dnscrypt.HexEncodeKey(resolverPublic)
+
+	if err := validateRc(rc, publicKey); err != nil {
+		log.Fatalf("Failed to validate resolver config, err: %s", err.Error())
+	}
 
 	out, err := yaml.Marshal(rc)
 	if err != nil {
-		log.Fatalf("Fail marshall output config, err: %s", err.Error())
+		log.Fatalf("Failed to marshall output config, err: %s", err.Error())
 	}
 
-	err = ioutil.WriteFile(args.Out, out, 0666)
+	err = ioutil.WriteFile(args.Out, out, 0600)
 	if err != nil {
-		log.Fatalf("Fail write file, err: %s", err.Error())
+		log.Fatalf("Failed to write file, err: %s", err.Error())
 	}
 }
 
-// getResolverPk - generates public key corresponding to private
+// validateRc - verifies that the certificate is correctly
+// created and validated for this resolver config. if rc valid returns nil.
+func validateRc(rc dnscrypt.ResolverConfig, publicKey ed25519.PublicKey) error {
+	cert, err := rc.CreateCert()
+	if err != nil {
+		return fmt.Errorf("failed to validate cert, err: %s", err.Error())
+	}
+	if cert == nil {
+		return fmt.Errorf("created cert is empty")
+	}
+
+	if !cert.VerifySignature(publicKey) {
+		return fmt.Errorf("cert signed incorrectly")
+	}
+	return nil
+}
+
+// getResolverPk - calculates public key from private key
 func getResolverPk(private ed25519.PrivateKey) ed25519.PublicKey {
 	resolverSk := [32]byte{}
 	resolverPk := [32]byte{}
-	if len(private) != ed25519.PrivateKeySize {
-		log.Fatal("Invalid resolver secret key.")
-	}
 	copy(resolverSk[:], private)
 	curve25519.ScalarBaseMult(&resolverPk, &resolverSk)
 	return resolverPk[:]

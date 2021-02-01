@@ -14,6 +14,7 @@ type Options struct {
 	LookupStamp LookupStampArgs `command:"lookup-stamp" description:"Performs a DNSCrypt lookup for the specified domain using an sdns:// stamp"`
 	Lookup      LookupArgs      `command:"lookup" description:"Performs a DNSCrypt lookup for the specified domain"`
 	Server      ServerArgs      `command:"server" description:"Runs a DNSCrypt resolver"`
+	GenFromKeys GenFromKeysArgs `command:"gen-from-keys" description:"Generate DNSCrypt server configuration from .key files"`
 	Version     struct {
 	} `command:"version" description:"Prints version"`
 }
@@ -45,7 +46,10 @@ func main() {
 		lookup(opts.Lookup)
 	case "server":
 		server(opts.Server)
+	case "gen-from-keys":
+		genFromKeys(opts.GenFromKeys)
 	default:
 		log.Fatalf("unknown command %s", parser.Active.Name)
 	}
 }
+

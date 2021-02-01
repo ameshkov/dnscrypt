@@ -40,7 +40,7 @@ func generate(args GenerateArgs) {
 	}
 
 	// nolint
-	err = ioutil.WriteFile(args.Out, b, 0644)
+	err = ioutil.WriteFile(args.Out, b, 0600)
 	if err != nil {
 		log.Fatalf("failed to save %s: %v", args.Out, err)
 	}

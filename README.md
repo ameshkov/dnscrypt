@@ -12,7 +12,7 @@ This repo includes everything you need to work with DNSCrypt. You can run your o
 * [Command-line tool](#commandline)
     * [How to install](#install)
     * [How to configure](#configure)
-      * [Converting dnscrypt-wrapper configuration](convertfromwrapper)
+      * [Converting dnscrypt-wrapper configuration](#convertfromwrapper)
     * [Running a server](#runningserver)
     * [Making lookups](#lookup)
 * [Programming interface](#api)

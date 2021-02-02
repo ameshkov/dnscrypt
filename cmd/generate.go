@@ -10,10 +10,10 @@ import (
 
 // GenerateArgs - "generate" command arguments
 type GenerateArgs struct {
-	ProviderName   string `short:"p" long:"provider-name" description:"DNSCrypt provider name" required:"true"`
+	ProviderName   string `short:"p" long:"provider-name" description:"DNSCrypt provider name. Param is required." required:"true"`
+	Out            string `short:"o" long:"out" description:"Path to the resulting config file. Param is required." required:"true"`
 	PrivateKey     string `short:"k" long:"private-key" description:"Private key (hex-encoded)"`
 	CertificateTTL int    `short:"t" long:"ttl" description:"Certificate time-to-live (seconds)"`
-	Out            string `short:"o" long:"out" description:"Path to the resulting config file" required:"true"`
 }
 
 // generate - generates DNSCrypt server configuration
@@ -40,7 +40,7 @@ func generate(args GenerateArgs) {
 	}
 
 	// nolint
-	err = ioutil.WriteFile(args.Out, b, 0644)
+	err = ioutil.WriteFile(args.Out, b, 0600)
 	if err != nil {
 		log.Fatalf("failed to save %s: %v", args.Out, err)
 	}

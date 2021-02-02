@@ -15,18 +15,18 @@ import (
 // LookupStampArgs - "lookup-stamp" command arguments
 type LookupStampArgs struct {
 	Network string `short:"n" long:"network" description:"network type (tcp/udp)" default:"udp"`
-	Stamp   string `short:"s" long:"stamp" description:"DNSCrypt resolver stamp" required:"true"`
-	Domain  string `short:"d" long:"domain" description:"Domain to resolve" required:"true"`
+	Stamp   string `short:"s" long:"stamp" description:"DNSCrypt resolver stamp. Param is required." required:"true"`
+	Domain  string `short:"d" long:"domain" description:"Domain to resolve. Param is required." required:"true"`
 	Type    string `short:"t" long:"type" description:"DNS query type" default:"A"`
 }
 
 // LookupArgs - "lookup" command arguments
 type LookupArgs struct {
 	Network      string `short:"n" long:"network" description:"network type (tcp/udp)" default:"udp"`
-	ProviderName string `short:"p" long:"provider-name" description:"DNSCrypt resolver provider name" required:"true"`
-	PublicKey    string `short:"k" long:"public-key" description:"DNSCrypt resolver public key" required:"true"`
-	ServerAddr   string `short:"a" long:"addr" description:"Resolver address (IP[:port]). By default, the port is 443" required:"true"`
-	Domain       string `short:"d" long:"domain" description:"Domain to resolve" required:"true"`
+	ProviderName string `short:"p" long:"provider-name" description:"DNSCrypt resolver provider name. Param is required." required:"true"`
+	PublicKey    string `short:"k" long:"public-key" description:"DNSCrypt resolver public key. Param is required." required:"true"`
+	ServerAddr   string `short:"a" long:"addr" description:"Resolver address (IP[:port]). By default, the port is 443. Param is required." required:"true"`
+	Domain       string `short:"d" long:"domain" description:"Domain to resolve. Param is required." required:"true"`
 	Type         string `short:"t" long:"type" description:"DNS query type" default:"A"`
 }
 

@@ -10,11 +10,12 @@ import (
 
 // Options - command-line options
 type Options struct {
-	Generate    GenerateArgs    `command:"generate" description:"Generates DNSCrypt server configuration"`
-	LookupStamp LookupStampArgs `command:"lookup-stamp" description:"Performs a DNSCrypt lookup for the specified domain using an sdns:// stamp"`
-	Lookup      LookupArgs      `command:"lookup" description:"Performs a DNSCrypt lookup for the specified domain"`
-	Server      ServerArgs      `command:"server" description:"Runs a DNSCrypt resolver"`
-	Version     struct {
+	Generate       GenerateArgs       `command:"generate" description:"Generates DNSCrypt server configuration"`
+	LookupStamp    LookupStampArgs    `command:"lookup-stamp" description:"Performs a DNSCrypt lookup for the specified domain using an sdns:// stamp"`
+	Lookup         LookupArgs         `command:"lookup" description:"Performs a DNSCrypt lookup for the specified domain"`
+	Server         ServerArgs         `command:"server" description:"Runs a DNSCrypt resolver"`
+	ConvertWrapper ConvertWrapperArgs `command:"convert-dnscrypt-wrapper" description:"Converting keys generated with dnscrypt-wrapper to yaml config"`
+	Version        struct {
 	} `command:"version" description:"Prints version"`
 }
 
@@ -45,6 +46,8 @@ func main() {
 		lookup(opts.Lookup)
 	case "server":
 		server(opts.Server)
+	case "convert-dnscrypt-wrapper":
+		convertWrapper(opts.ConvertWrapper)
 	default:
 		log.Fatalf("unknown command %s", parser.Active.Name)
 	}

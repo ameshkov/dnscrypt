@@ -31,7 +31,7 @@ type ResolverConfig struct {
 	// If not set, we'll generate a new random ResolverSk and ResolverPk.
 	ResolverSk string `yaml:"resolver_secret"`
 
-	// ResolverSk - hex-encoded short-term public key corresponding to ResolverSk.
+	// ResolverPk - hex-encoded short-term public key corresponding to ResolverSk.
 	// This key is used to encrypt/decrypt DNS queries.
 	ResolverPk string `yaml:"resolver_public"`
 

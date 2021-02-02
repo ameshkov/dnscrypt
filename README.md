@@ -99,11 +99,13 @@ In both cases, you can specify the transport using the 'network' flag (`udp` def
 Keys generated using dnscrypt-wrapper can be converted to config.yaml by running the command:
 
 ```
-./dnscrypt convert-dnscrypt-wrapper \
---private-key=secret.key \
---resolver-sk-key=resolver.key \
---provider-name=2.dnscrypt-cert.example.com \
---out=config.yaml
+./dnscrypt convert-dnscrypt-wrapper
+
+-p, --private-key=     DNSCrypt resolver private key that is used for signing certificates
+-r, --resolver-secret= Short-term privacy key file for encrypting/decrypting DNS queries
+-n, --provider-name=   DNSCrypt provider name
+-o, --out=             Path to the resulting config file
+-t, --ttl=             Certificate time-to-live (seconds)
 ```
 
 ## <a id="api"></a> Programming interface

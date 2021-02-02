@@ -81,7 +81,9 @@ func validateRc(rc dnscrypt.ResolverConfig, publicKey ed25519.PublicKey) error {
 	if cert == nil {
 		return fmt.Errorf("created cert is empty")
 	}
-
+	if !cert.VerifyDate() {
+		return fmt.Errorf("cert date is not valid")
+	}
 	if !cert.VerifySignature(publicKey) {
 		return fmt.Errorf("cert signed incorrectly")
 	}

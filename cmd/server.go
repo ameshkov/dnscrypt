@@ -15,7 +15,7 @@ import (
 
 // ServerArgs - "server" command arguments
 type ServerArgs struct {
-	Config      string   `short:"c" long:"config" description:"Path to the DNSCrypt configuration file" required:"true"`
+	Config      string   `short:"c" long:"config" description:"Path to the DNSCrypt configuration file. Param is required." required:"true"`
 	Forward     string   `short:"f" long:"forward" description:"Forwards DNS queries to the specified address" default:"94.140.14.140:53"`
 	ListenAddrs []string `short:"l" long:"listen" description:"Listening addresses" default:"0.0.0.0"`
 	ListenPorts []int    `short:"p" long:"port" description:"Listening ports" default:"443"`

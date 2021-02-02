@@ -14,10 +14,10 @@ import (
 
 // ConvertWrapperArgs - "convert-dnscrypt-wrapper" command arguments
 type ConvertWrapperArgs struct {
-	PrivateKeyFile string `short:"p" long:"private-key" description:"DNSCrypt resolver private key that is used for signing certificates" required:"true"`
-	ResolverSkFile string `short:"r" long:"resolver-secret" description:"Short-term privacy key file for encrypting/decrypting DNS queries"`
-	ProviderName   string `short:"n" long:"provider-name" description:"DNSCrypt provider name" required:"true"`
-	Out            string `short:"o" long:"out" description:"Path to the resulting config file" required:"true"`
+	PrivateKeyFile string `short:"p" long:"private-key" description:"Path to the DNSCrypt resolver private key file that is used for signing certificates. Param is required." required:"true"`
+	ResolverSkFile string `short:"r" long:"resolver-secret" description:"Path to the Short-term privacy key file for encrypting/decrypting DNS queries. If not specified, resolver_secret and resolver_public will be randomly generated."`
+	ProviderName   string `short:"n" long:"provider-name" description:"DNSCrypt provider name. Param is required." required:"true"`
+	Out            string `short:"o" long:"out" description:"Path to the resulting config file. Param is required." required:"true"`
 	CertificateTTL int    `short:"t" long:"ttl" description:"Certificate time-to-live (seconds)"`
 }
 

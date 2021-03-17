@@ -21,13 +21,13 @@ func TestCertSerialize(t *testing.T) {
 
 	// serialize
 	b, err := cert.Serialize()
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, 124, len(b))
 
 	// check that we can deserialize it
 	cert2 := Cert{}
 	err = cert2.Deserialize(b)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, cert.Serial, cert2.Serial)
 	assert.Equal(t, cert.NotBefore, cert2.NotBefore)
 	assert.Equal(t, cert.NotAfter, cert2.NotAfter)
@@ -40,11 +40,11 @@ func TestCertSerialize(t *testing.T) {
 func TestCertDeserialize(t *testing.T) {
 	// dig -t txt 2.dnscrypt-cert.opendns.com. -p 443 @208.67.220.220
 	b, err := unpackTxtString("DNSC\\000\\001\\000\\000\\200\\226E:H\\156\\203%\\134\\218\\127]\\168\\239\\027u\\011$\\191\\008\\239\\176F\\133\\017\\171\\161\\219\\154\\142i\\164\\010\\239\\017f\\168dS\\210f\\197\\194\\169\\171w\\2499\\1891\\155<\\130\\218@/\\155\\023v\\153#d\\024\\004\\136\\180\\228K5\\233d\\180\\144\\189\\218\\186\\232%\\162K\\004\\021\\160\\139\\225\\157}\\219\\135\\163<\\215~\\223\\142/qc78aWoo]\\221\\184`]\\221\\184`_\\190\\235\\224")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	cert := &Cert{}
 	err = cert.Deserialize(b)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, uint32(1574811744), cert.Serial)
 	assert.Equal(t, XSalsa20Poly1305, cert.EsVersion)
 	assert.Equal(t, uint32(1574811744), cert.NotBefore)
@@ -69,7 +69,7 @@ func generateValidCert(t *testing.T) (*Cert, ed25519.PublicKey, ed25519.PrivateK
 
 	// generate private key
 	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	// sign the data
 	cert.Sign(privateKey)

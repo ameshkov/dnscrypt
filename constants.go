@@ -47,6 +47,9 @@ var (
 
 	// ErrServerConfig - failed to start the DNSCrypt server - invalid configuration
 	ErrServerConfig = errors.New("invalid server configuration")
+
+	// ErrServerNotStarted - returned if there's nothing to shutdown
+	ErrServerNotStarted = errors.New("server is not started")
 )
 
 const (

@@ -23,7 +23,7 @@ func testDNSCryptQueryEncryptDecrypt(t *testing.T, esVersion CryptoConstruction)
 
 	// Generate client shared key
 	clientSharedKey, err := computeSharedKey(esVersion, &clientSecretKey, &serverPublicKey)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	clientMagic := [clientMagicSize]byte{}
 	_, _ = rand.Read(clientMagic[:])
@@ -40,7 +40,7 @@ func testDNSCryptQueryEncryptDecrypt(t *testing.T, esVersion CryptoConstruction)
 
 	// Encrypt it
 	encrypted, err := q1.Encrypt(packet, clientSharedKey)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	// Now let's try decrypting it
 	q2 := EncryptedQuery{
@@ -50,7 +50,7 @@ func testDNSCryptQueryEncryptDecrypt(t *testing.T, esVersion CryptoConstruction)
 
 	// Decrypt it
 	decrypted, err := q2.Decrypt(encrypted, serverSecretKey)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	// Check that packet is the same
 	assert.True(t, bytes.Equal(packet, decrypted))

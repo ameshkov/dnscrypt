@@ -63,7 +63,7 @@ func TestTimeoutOnDialExchange(t *testing.T) {
 	client := Client{Timeout: 300 * time.Millisecond}
 
 	serverInfo, err := client.Dial(stampStr)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	// Point it to an IP where there's no DNSCrypt server
 	serverInfo.ServerAddress = "8.8.8.8:5443"
@@ -105,12 +105,15 @@ func TestFetchCertPublicResolvers(t *testing.T) {
 
 	for _, test := range stamps {
 		stamp, err := dnsstamps.NewServerStampFromString(test.stampStr)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		t.Run(stamp.ProviderName, func(t *testing.T) {
-			c := &Client{Net: "udp"}
+			c := &Client{
+				Net:     "udp",
+				Timeout: time.Second * 5,
+			}
 			resolverInfo, err := c.DialStamp(stamp)
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 			assert.NotNil(t, resolverInfo)
 			assert.True(t, resolverInfo.ResolverCert.VerifyDate())
 			assert.True(t, resolverInfo.ResolverCert.VerifySignature(stamp.ServerPk))
@@ -146,7 +149,7 @@ func TestExchangePublicResolvers(t *testing.T) {
 
 	for _, test := range stamps {
 		stamp, err := dnsstamps.NewServerStampFromString(test.stampStr)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		t.Run(stamp.ProviderName, func(t *testing.T) {
 			checkDNSCryptServer(t, test.stampStr, "udp")
@@ -158,12 +161,12 @@ func TestExchangePublicResolvers(t *testing.T) {
 func checkDNSCryptServer(t *testing.T, stampStr string, network string) {
 	client := Client{Net: network, Timeout: 10 * time.Second}
 	resolverInfo, err := client.Dial(stampStr)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	req := createTestMessage()
 
 	reply, err := client.Exchange(req, resolverInfo)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assertTestMessageResponse(t, reply)
 }
 
@@ -177,7 +180,7 @@ func createTestMessage() *dns.Msg {
 	return &req
 }
 
-func assertTestMessageResponse(t *testing.T, reply *dns.Msg) {
+func assertTestMessageResponse(t assert.TestingT, reply *dns.Msg) {
 	assert.NotNil(t, reply)
 	assert.Equal(t, 1, len(reply.Answer))
 	a, ok := reply.Answer[0].(*dns.A)

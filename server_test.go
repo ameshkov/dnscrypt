@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/ameshkov/dnsstamps"
 	"github.com/miekg/dns"
 	"github.com/stretchr/testify/assert"
@@ -50,7 +52,7 @@ func testServerServeCert(t *testing.T, network string) {
 		Proto:         dnsstamps.StampProtoTypeDNSCrypt,
 	}
 	ri, err := client.DialStamp(stamp)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, ri)
 
 	assert.Equal(t, ri.ProviderName, srv.server.ProviderName)
@@ -65,7 +67,10 @@ func testServerServeCert(t *testing.T, network string) {
 
 func testServerRespondMessages(t *testing.T, network string) {
 	srv := newTestServer(t, &testHandler{})
-	defer srv.Close()
+	defer func() {
+		err := srv.Close()
+		assert.NoError(t, err)
+	}()
 
 	client := &Client{
 		Timeout: 1 * time.Second,
@@ -84,16 +89,16 @@ func testServerRespondMessages(t *testing.T, network string) {
 		Proto:         dnsstamps.StampProtoTypeDNSCrypt,
 	}
 	ri, err := client.DialStamp(stamp)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, ri)
 
 	conn, err := net.Dial(network, stamp.ServerAddrStr)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	for i := 0; i < 10; i++ {
 		m := createTestMessage()
 		res, err := client.ExchangeConn(conn, m, ri)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assertTestMessageResponse(t, res)
 	}
 }
@@ -114,16 +119,22 @@ func (s *testServer) UDPAddr() *net.UDPAddr {
 	return s.udpConn.LocalAddr().(*net.UDPAddr)
 }
 
-func (s *testServer) Close() {
+func (s *testServer) Close() error {
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Second))
+	defer cancel()
+
+	err := s.server.Shutdown(ctx)
 	_ = s.udpConn.Close()
 	_ = s.tcpListen.Close()
+
+	return err
 }
 
-func newTestServer(t *testing.T, handler Handler) *testServer {
+func newTestServer(t assert.TestingT, handler Handler) *testServer {
 	rc, err := GenerateResolverConfig("example.org", nil)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	cert, err := rc.CreateCert()
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	s := &Server{
 		ProviderName: rc.ProviderName,
@@ -132,7 +143,7 @@ func newTestServer(t *testing.T, handler Handler) *testServer {
 	}
 
 	privateKey, err := HexDecodeKey(rc.PrivateKey)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	publicKey := ed25519.PrivateKey(privateKey).Public().(ed25519.PublicKey)
 	srv := &testServer{
 		server:     s,
@@ -140,9 +151,9 @@ func newTestServer(t *testing.T, handler Handler) *testServer {
 	}
 
 	srv.tcpListen, err = net.ListenTCP("tcp", &net.TCPAddr{IP: net.IPv4zero, Port: 0})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	srv.udpConn, err = net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4zero, Port: 0})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	go s.ServeUDP(srv.udpConn)
 	go s.ServeTCP(srv.tcpListen)

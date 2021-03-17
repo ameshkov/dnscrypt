@@ -1,9 +1,33 @@
 package dnscrypt
 
 import (
+	"net"
+	"sync"
+	"time"
+
+	"golang.org/x/net/context"
+
 	"github.com/AdguardTeam/golibs/log"
 	"github.com/miekg/dns"
 )
+
+const readTimeout = 2 * time.Second
+
+// ServerDNSCrypt - interface for a DNSCrypt server
+type ServerDNSCrypt interface {
+	// ServeTCP - listens to TCP connections, queries are then processed by Server.Handler.
+	// It blocks the calling goroutine and to stop it you need to close the listener.
+	ServeTCP(l net.Listener) error
+
+	// ServeUDP - listens to UDP connections, queries are then processed by Server.Handler.
+	// It blocks the calling goroutine and to stop it you need to close the listener.
+	ServeUDP(l *net.UDPConn) error
+
+	// Shutdown - tries to gracefully shutdown the server. It waits until all
+	// connections are processed and only after that it leaves the method.
+	// If context deadline is specified, it will exit earlier.
+	Shutdown(ctx context.Context) error
+}
 
 // Server - a simple DNSCrypt server implementation
 type Server struct {
@@ -15,13 +39,101 @@ type Server struct {
 
 	// Handler to invoke. If nil, uses DefaultHandler.
 	Handler Handler
+
+	// Shutdown handling
+	// --
+	lock         sync.RWMutex
+	started      bool
+	wg           sync.WaitGroup            // active workers (servers)
+	tcpListeners map[net.Listener]struct{} // track active TCP listeners
+	udpListeners map[*net.UDPConn]struct{} // track active UDP listeners
+	tcpConns     map[net.Conn]struct{}     // track active connections
+}
+
+// type check
+var _ ServerDNSCrypt = &Server{}
+
+// Shutdown - tries to gracefully shutdown the server. It waits until all
+// connections are processed and only after that it leaves the method.
+// If context deadline is specified, it will exit earlier.
+func (s *Server) Shutdown(ctx context.Context) error {
+	log.Info("Shutting down the DNSCrypt server")
+
+	s.lock.Lock()
+	if !s.started {
+		s.lock.Unlock()
+		log.Info("Server is not started")
+		return ErrServerNotStarted
+	}
+
+	s.started = false
+
+	// Unblock reads for all active tcpConns
+	for conn := range s.tcpConns {
+		_ = conn.SetReadDeadline(time.Unix(1, 0))
+	}
+
+	// Unblock reads for all active TCP listeners
+	for l := range s.tcpListeners {
+		switch v := l.(type) {
+		case *net.TCPListener:
+			_ = v.SetDeadline(time.Unix(1, 0))
+		}
+	}
+
+	// Unblock reads for all active UDP listeners
+	for l := range s.udpListeners {
+		_ = l.SetReadDeadline(time.Unix(1, 0))
+	}
+	s.lock.Unlock()
+
+	// Using this channel to wait until all goroutines finish their work
+	closed := make(chan struct{})
+	go func() {
+		s.wg.Wait()
+		log.Info("Serve goroutines finished their work")
+		close(closed)
+	}()
+
+	// Wait for either all goroutines finish their work
+	// Or for the context deadline
+	var ctxErr error
+	select {
+	case <-closed:
+		log.Info("DNSCrypt server has been stopped")
+	case <-ctx.Done():
+		log.Info("DNSCrypt server shutdown has timed out")
+		ctxErr = ctx.Err()
+	}
+
+	return ctxErr
+}
+
+// init - initializes (lazily) Server properties on startup
+// this method is called from Server.ServeTCP and Server.ServeUDP
+func (s *Server) init() {
+	if s.started && s.tcpConns != nil {
+		// The server has already been started, no need to initialize anything
+		return
+	}
+	s.tcpConns = map[net.Conn]struct{}{}
+	s.udpListeners = map[*net.UDPConn]struct{}{}
+	s.tcpListeners = map[net.Listener]struct{}{}
+}
+
+// isStarted - returns true if server is processing queries right now
+// it means that Server.ServeTCP or Server.ServeUDP has been called
+func (s *Server) isStarted() bool {
+	s.lock.RLock()
+	started := s.started
+	s.lock.RUnlock()
+	return started
 }
 
 // serveDNS - serves DNS response
-func (s *Server) serveDNS(rw ResponseWriter, r *dns.Msg) {
+func (s *Server) serveDNS(rw ResponseWriter, r *dns.Msg) error {
 	if r == nil || len(r.Question) != 1 || r.Response {
-		log.Tracef("Invalid query: %v", r)
-		return
+		return ErrInvalidQuery
 	}
 
 	log.Tracef("Handling a DNS query: %s", r.Question[0].Name)
@@ -39,6 +151,8 @@ func (s *Server) serveDNS(rw ResponseWriter, r *dns.Msg) {
 		reply.SetRcode(r, dns.RcodeServerFailure)
 		_ = rw.WriteMsg(reply)
 	}
+
+	return nil
 }
 
 // encrypt - encrypts DNSCrypt response

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/ameshkov/dnsstamps"
-
 	"github.com/stretchr/testify/assert"
 )
 

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/AdguardTeam/golibs/log"
 	"github.com/miekg/dns"
@@ -44,7 +45,8 @@ func (w *TCPResponseWriter) WriteMsg(m *dns.Msg) error {
 }
 
 // ServeTCP - listens to TCP connections, queries are then processed by Server.Handler.
-// It blocks the calling goroutine and to stop it you need to close the listener.
+// It blocks the calling goroutine and to stop it you need to close the listener
+// or call Server.Shutdown.
 func (s *Server) ServeTCP(l net.Listener) error {
 	var once sync.Once
 	unlock := func() { once.Do(s.lock.Unlock) }
@@ -67,15 +69,13 @@ func (s *Server) ServeTCP(l net.Listener) error {
 	s.init()
 	s.started = true
 
+	// Track active TCP listener
+	s.tcpListeners[l] = struct{}{}
+
 	// No need to lock anymore
 	unlock()
 
 	log.Info("Entering DNSCrypt TCP listening loop tcp://%s", l.Addr().String())
-
-	// Track active TCP listener
-	s.lock.Lock()
-	s.tcpListeners[l] = struct{}{}
-	s.lock.Unlock()
 
 	// Tracks TCP connection handling goroutines
 	tcpWg := sync.WaitGroup{}
@@ -180,7 +180,11 @@ func (s *Server) handleTCPMsg(b []byte, conn net.Conn, certTxt string) error {
 // handleTCPConnection - handles all queries that are coming to the
 // specified TCP connection.
 func (s *Server) handleTCPConnection(conn net.Conn, certTxt string) error {
+	timeout := readTimeout
+
 	for s.isStarted() {
+		_ = conn.SetReadDeadline(time.Now().Add(timeout))
+
 		b, err := readPrefixed(conn)
 		if err != nil {
 			return err
@@ -190,6 +194,8 @@ func (s *Server) handleTCPConnection(conn net.Conn, certTxt string) error {
 		if err != nil {
 			return err
 		}
+
+		timeout = tcpIdleTimeout
 	}
 
 	return nil

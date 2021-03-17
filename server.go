@@ -11,21 +11,29 @@ import (
 	"github.com/miekg/dns"
 )
 
+// default read timeout for all reads
 const readTimeout = 2 * time.Second
+
+// in case of TCP we only use readTimeout for the first read
+// then we start using tcpIdleTimeout
+const tcpIdleTimeout = 8 * time.Second
 
 // ServerDNSCrypt - interface for a DNSCrypt server
 type ServerDNSCrypt interface {
 	// ServeTCP - listens to TCP connections, queries are then processed by Server.Handler.
-	// It blocks the calling goroutine and to stop it you need to close the listener.
+	// It blocks the calling goroutine and to stop it you need to close the listener
+	// or call ServerDNSCrypt.Shutdown.
 	ServeTCP(l net.Listener) error
 
 	// ServeUDP - listens to UDP connections, queries are then processed by Server.Handler.
-	// It blocks the calling goroutine and to stop it you need to close the listener.
+	// It blocks the calling goroutine and to stop it you need to close the listener
+	// or call ServerDNSCrypt.Shutdown.
 	ServeUDP(l *net.UDPConn) error
 
 	// Shutdown - tries to gracefully shutdown the server. It waits until all
 	// connections are processed and only after that it leaves the method.
-	// If context deadline is specified, it will exit earlier.
+	// If context deadline is specified, it will exit earlier
+	// or call ServerDNSCrypt.Shutdown.
 	Shutdown(ctx context.Context) error
 }
 
@@ -121,8 +129,8 @@ func (s *Server) init() {
 	s.tcpListeners = map[net.Listener]struct{}{}
 }
 
-// isStarted - returns true if server is processing queries right now
-// it means that Server.ServeTCP or Server.ServeUDP has been called
+// isStarted - returns true if the server is processing queries right now
+// it means that Server.ServeTCP and/or Server.ServeUDP have been called
 func (s *Server) isStarted() bool {
 	s.lock.RLock()
 	started := s.started

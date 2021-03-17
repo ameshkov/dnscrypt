@@ -52,7 +52,8 @@ func (w *UDPResponseWriter) WriteMsg(m *dns.Msg) error {
 }
 
 // ServeUDP - listens to UDP connections, queries are then processed by Server.Handler.
-// It blocks the calling goroutine and to stop it you need to close the listener.
+// It blocks the calling goroutine and to stop it you need to close the listener
+// or call Server.Shutdown.
 func (s *Server) ServeUDP(l *net.UDPConn) error {
 	var once sync.Once
 	unlock := func() { once.Do(s.lock.Unlock) }
@@ -81,13 +82,11 @@ func (s *Server) ServeUDP(l *net.UDPConn) error {
 	s.init()
 	s.started = true
 
+	// Track active UDP listener
+	s.udpListeners[l] = struct{}{}
+
 	// No need to lock anymore
 	unlock()
-
-	// Track active UDP listener
-	s.lock.Lock()
-	s.udpListeners[l] = struct{}{}
-	s.lock.Unlock()
 
 	// Tracks UDP handling goroutines
 	udpWg := &sync.WaitGroup{}

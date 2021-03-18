@@ -205,14 +205,12 @@ func setUDPSocketOptions(conn *net.UDPConn) error {
 		return nil
 	}
 
-	// Try setting the flags for both families and ignore the errors unless they
-	// both error.
+	// We don't know if this a IPv4-only, IPv6-only or a IPv4-and-IPv6 connection.
+	// Try enabling receiving of ECN and packet info for both IP versions.
+	// We expect at least one of those syscalls to succeed.
 	err6 := ipv6.NewPacketConn(conn).SetControlMessage(ipv6.FlagDst|ipv6.FlagInterface, true)
 	err4 := ipv4.NewPacketConn(conn).SetControlMessage(ipv4.FlagDst|ipv4.FlagInterface, true)
 	if err6 != nil && err4 != nil {
-		// The code comes from miekg/dns and tbh I have no idea why this is the only case
-		// where the error is not ignored. However, since it works for others, let's keep
-		// it this way :)
 		return err4
 	}
 	return nil

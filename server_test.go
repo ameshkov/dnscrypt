@@ -2,6 +2,7 @@ package dnscrypt
 
 import (
 	"bytes"
+	"context"
 	"crypto/ed25519"
 	"fmt"
 	"net"
@@ -11,7 +12,6 @@ import (
 	"github.com/ameshkov/dnsstamps"
 	"github.com/miekg/dns"
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/net/context"
 )
 
 func TestServerUDPServeCert(t *testing.T) {
@@ -66,10 +66,10 @@ func testServerServeCert(t *testing.T, network string) {
 
 func testServerRespondMessages(t *testing.T, network string) {
 	srv := newTestServer(t, &testHandler{})
-	defer func() {
+	t.Cleanup(func() {
 		err := srv.Close()
 		assert.NoError(t, err)
-	}()
+	})
 
 	client := &Client{
 		Timeout: 1 * time.Second,

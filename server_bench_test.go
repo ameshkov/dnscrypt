@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/ameshkov/dnsstamps"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func BenchmarkServeUDP(b *testing.B) {
@@ -19,12 +19,11 @@ func BenchmarkServeTCP(b *testing.B) {
 }
 
 func benchmarkServe(b *testing.B, network string) {
-	b.StopTimer()
 	srv := newTestServer(b, &testHandler{})
-	defer func() {
+	b.Cleanup(func() {
 		err := srv.Close()
-		assert.Nil(b, err)
-	}()
+		require.NoError(b, err)
+	})
 
 	client := &Client{
 		Timeout: 1 * time.Second,
@@ -43,18 +42,18 @@ func benchmarkServe(b *testing.B, network string) {
 		Proto:         dnsstamps.StampProtoTypeDNSCrypt,
 	}
 	ri, err := client.DialStamp(stamp)
-	assert.NoError(b, err)
-	assert.NotNil(b, ri)
+	require.NoError(b, err)
+	require.NotNil(b, ri)
 
 	conn, err := net.Dial(network, stamp.ServerAddrStr)
-	assert.NoError(b, err)
+	require.NoError(b, err)
 
+	b.ResetTimer()
 	b.ReportAllocs()
-	b.StartTimer()
 	for i := 0; i < b.N; i++ {
 		m := createTestMessage()
 		res, err := client.ExchangeConn(conn, m, ri)
-		assert.NoError(b, err)
+		require.NoError(b, err)
 		assertTestMessageResponse(b, res)
 	}
 	b.StopTimer()

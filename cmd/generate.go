@@ -8,7 +8,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// GenerateArgs - "generate" command arguments
+// GenerateArgs is the "generate" command arguments structure
 type GenerateArgs struct {
 	ProviderName   string `short:"p" long:"provider-name" description:"DNSCrypt provider name. Param is required." required:"true"`
 	Out            string `short:"o" long:"out" description:"Path to the resulting config file. Param is required." required:"true"`
@@ -16,7 +16,7 @@ type GenerateArgs struct {
 	CertificateTTL int    `short:"t" long:"ttl" description:"Certificate time-to-live (seconds)"`
 }
 
-// generate - generates DNSCrypt server configuration
+// generate generates a DNSCrypt server configuration
 func generate(args GenerateArgs) {
 	log.Info("Generating configuration for %s", args.ProviderName)
 

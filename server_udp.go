@@ -7,16 +7,15 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/net/ipv4"
-	"golang.org/x/net/ipv6"
-
 	"github.com/AdguardTeam/golibs/log"
 	"github.com/miekg/dns"
+	"golang.org/x/net/ipv4"
+	"golang.org/x/net/ipv6"
 )
 
 type encryptionFunc func(m *dns.Msg, q EncryptedQuery) ([]byte, error)
 
-// UDPResponseWriter - ResponseWriter implementation for UDP
+// UDPResponseWriter is the ResponseWriter implementation for UDP
 type UDPResponseWriter struct {
 	udpConn *net.UDPConn    // UDP connection
 	sess    *dns.SessionUDP // SessionUDP (necessary to use dns.WriteToSessionUDP)
@@ -28,17 +27,17 @@ type UDPResponseWriter struct {
 // type check
 var _ ResponseWriter = &UDPResponseWriter{}
 
-// LocalAddr - server socket local address
+// LocalAddr is the server socket local address
 func (w *UDPResponseWriter) LocalAddr() net.Addr {
 	return w.udpConn.LocalAddr()
 }
 
-// RemoteAddr - client's address
+// RemoteAddr is the client's address
 func (w *UDPResponseWriter) RemoteAddr() net.Addr {
 	return w.udpConn.RemoteAddr()
 }
 
-// WriteMsg - writes DNS message to the client
+// WriteMsg writes DNS message to the client
 func (w *UDPResponseWriter) WriteMsg(m *dns.Msg) error {
 	m.Truncate(dnsSize("udp", w.req))
 
@@ -51,58 +50,29 @@ func (w *UDPResponseWriter) WriteMsg(m *dns.Msg) error {
 	return err
 }
 
-// ServeUDP - listens to UDP connections, queries are then processed by Server.Handler.
+// ServeUDP listens to UDP connections, queries are then processed by Server.Handler.
 // It blocks the calling goroutine and to stop it you need to close the listener
 // or call Server.Shutdown.
 func (s *Server) ServeUDP(l *net.UDPConn) error {
-	var once sync.Once
-	unlock := func() { once.Do(s.lock.Unlock) }
-	s.lock.Lock()
-	defer unlock()
-
-	// Check that server is properly configured
-	if !s.validate() {
-		return ErrServerConfig
-	}
-
-	// set UDP options to allow receiving OOB data
-	err := setUDPSocketOptions(l)
+	err := s.prepareServeUDP(l)
 	if err != nil {
 		return err
 	}
-
-	// Serialize the cert right away and prepare it to be sent to the client
-	certBuf, err := s.ResolverCert.Serialize()
-	if err != nil {
-		return err
-	}
-	certTxt := packTxtString(certBuf)
-
-	// Mark the server as started if needed
-	s.init()
-	s.started = true
-
-	// Track active UDP listener
-	s.udpListeners[l] = struct{}{}
-
-	// No need to lock anymore
-	unlock()
 
 	// Tracks UDP handling goroutines
 	udpWg := &sync.WaitGroup{}
+	defer s.cleanUpUDP(udpWg, l)
 
 	// Track active goroutine
 	s.wg.Add(1)
-	defer func() {
-		// Wait until UDP messages are processed
-		udpWg.Wait()
-		s.lock.Lock()
-		delete(s.udpListeners, l)
-		s.lock.Unlock()
-		s.wg.Done()
-	}()
 
 	log.Info("Entering DNSCrypt UDP listening loop on udp://%s", l.LocalAddr().String())
+
+	// Serialize the cert right away and prepare it to be sent to the client
+	certTxt, err := s.getCertTXT()
+	if err != nil {
+		return err
+	}
 
 	for s.isStarted() {
 		b, sess, err := s.readUDPMsg(l)
@@ -140,9 +110,51 @@ func (s *Server) ServeUDP(l *net.UDPConn) error {
 	return nil
 }
 
-// readUDPMsg - reads incoming UDP message
+// prepareServeUDP prepares the server and listener to serving DNSCrypt
+func (s *Server) prepareServeUDP(l *net.UDPConn) error {
+	// Check that server is properly configured
+	if !s.validate() {
+		return ErrServerConfig
+	}
+
+	// set UDP options to allow receiving OOB data
+	err := setUDPSocketOptions(l)
+	if err != nil {
+		return err
+	}
+
+	// Protect shutdown-related fields
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	s.init()
+
+	// Mark the server as started.
+	// Note that we don't check if it was started before as
+	// Serve* methods can be called multiple times.
+	s.started = true
+
+	// Track an active UDP listener
+	s.udpListeners[l] = struct{}{}
+	return err
+}
+
+// cleanUpUDP waits until all UDP messages before cleaning up
+func (s *Server) cleanUpUDP(udpWg *sync.WaitGroup, l *net.UDPConn) {
+	// Wait until UDP messages are processed
+	udpWg.Wait()
+
+	// Not using it anymore so can be removed from the active listeners
+	s.lock.Lock()
+	delete(s.udpListeners, l)
+	s.lock.Unlock()
+
+	// The work is finished
+	s.wg.Done()
+}
+
+// readUDPMsg reads incoming UDP message
 func (s *Server) readUDPMsg(l *net.UDPConn) ([]byte, *dns.SessionUDP, error) {
-	_ = l.SetReadDeadline(time.Now().Add(readTimeout))
+	_ = l.SetReadDeadline(time.Now().Add(defaultReadTimeout))
 	b := make([]byte, dns.MinMsgSize)
 	n, sess, err := dns.ReadFromSessionUDP(l, b)
 	if err != nil {
@@ -152,7 +164,7 @@ func (s *Server) readUDPMsg(l *net.UDPConn) ([]byte, *dns.SessionUDP, error) {
 	return b[:n], sess, err
 }
 
-// serveUDPMsg - handles incoming DNS message
+// serveUDPMsg handles incoming DNS message
 func (s *Server) serveUDPMsg(b []byte, certTxt string, sess *dns.SessionUDP, l *net.UDPConn) {
 	if bytes.Equal(b[:clientMagicSize], s.ResolverCert.ClientMagic[:]) {
 		// This is an encrypted message, we should decrypt it
@@ -165,23 +177,27 @@ func (s *Server) serveUDPMsg(b []byte, certTxt string, sess *dns.SessionUDP, l *
 				req:     m,
 				query:   q,
 			}
-			_ = s.serveDNS(rw, m)
+			err = s.serveDNS(rw, m)
+			if err != nil {
+				log.Tracef("failed to process a DNS query: %v", err)
+			}
 		} else {
-			log.Tracef("Failed to decrypt incoming message len=%d: %v", len(b), err)
+			log.Tracef("failed to decrypt incoming message len=%d: %v", len(b), err)
 		}
 	} else {
 		// Most likely this a DNS message requesting the certificate
 		reply, err := s.handleHandshake(b, certTxt)
 		if err != nil {
-			log.Tracef("Failed to process a plain DNS query: %v", err)
+			log.Tracef("failed to process a plain DNS query: %v", err)
 		}
 		if err == nil {
+			// Ignore errors, we don't care and can't handle them anyway
 			_, _ = dns.WriteToSessionUDP(l, reply, sess)
 		}
 	}
 }
 
-// setUDPSocketOptions - this is necessary to be able to use dns.ReadFromSessionUDP / dns.WriteToSessionUDP
+// setUDPSocketOptions method is necessary to be able to use dns.ReadFromSessionUDP / dns.WriteToSessionUDP
 func setUDPSocketOptions(conn *net.UDPConn) error {
 	if runtime.GOOS == "windows" {
 		return nil

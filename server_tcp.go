@@ -2,6 +2,7 @@ package dnscrypt
 
 import (
 	"bytes"
+	"fmt"
 	"net"
 	"sync"
 	"time"
@@ -10,7 +11,7 @@ import (
 	"github.com/miekg/dns"
 )
 
-// TCPResponseWriter - ResponseWriter implementation for TCP
+// TCPResponseWriter is the ResponseWriter implementation for TCP
 type TCPResponseWriter struct {
 	tcpConn net.Conn
 	encrypt encryptionFunc
@@ -21,17 +22,17 @@ type TCPResponseWriter struct {
 // type check
 var _ ResponseWriter = &TCPResponseWriter{}
 
-// LocalAddr - server socket local address
+// LocalAddr is the server socket local address
 func (w *TCPResponseWriter) LocalAddr() net.Addr {
 	return w.tcpConn.LocalAddr()
 }
 
-// RemoteAddr - client's address
+// RemoteAddr is the client's address
 func (w *TCPResponseWriter) RemoteAddr() net.Addr {
 	return w.tcpConn.RemoteAddr()
 }
 
-// WriteMsg - writes DNS message to the client
+// WriteMsg writes DNS message to the client
 func (w *TCPResponseWriter) WriteMsg(m *dns.Msg) error {
 	m.Truncate(dnsSize("tcp", w.req))
 
@@ -44,54 +45,29 @@ func (w *TCPResponseWriter) WriteMsg(m *dns.Msg) error {
 	return writePrefixed(res, w.tcpConn)
 }
 
-// ServeTCP - listens to TCP connections, queries are then processed by Server.Handler.
+// ServeTCP listens to TCP connections, queries are then processed by Server.Handler.
 // It blocks the calling goroutine and to stop it you need to close the listener
 // or call Server.Shutdown.
 func (s *Server) ServeTCP(l net.Listener) error {
-	var once sync.Once
-	unlock := func() { once.Do(s.lock.Unlock) }
-	s.lock.Lock()
-	defer unlock()
-
-	// Check that server is properly configured
-	if !s.validate() {
-		return ErrServerConfig
-	}
-
-	// Serialize the cert right away and prepare it to be sent to the client
-	certBuf, err := s.ResolverCert.Serialize()
+	err := s.prepareServeTCP(l)
 	if err != nil {
 		return err
 	}
-	certTxt := packTxtString(certBuf)
-
-	// Mark the server as started if needed
-	s.init()
-	s.started = true
-
-	// Track active TCP listener
-	s.tcpListeners[l] = struct{}{}
-
-	// No need to lock anymore
-	unlock()
 
 	log.Info("Entering DNSCrypt TCP listening loop tcp://%s", l.Addr().String())
 
 	// Tracks TCP connection handling goroutines
-	tcpWg := sync.WaitGroup{}
+	tcpWg := &sync.WaitGroup{}
+	defer s.cleanUpTCP(tcpWg, l)
 
 	// Track active goroutine
 	s.wg.Add(1)
-	defer func() {
-		// Wait until all TCP connections are processed
-		tcpWg.Wait()
 
-		s.lock.Lock()
-		delete(s.tcpListeners, l)
-		s.lock.Unlock()
-
-		s.wg.Done()
-	}()
+	// Serialize the cert right away and prepare it to be sent to the client
+	certTxt, err := s.getCertTXT()
+	if err != nil {
+		return err
+	}
 
 	for s.isStarted() {
 		conn, err := l.Accept()
@@ -122,6 +98,8 @@ func (s *Server) ServeTCP(l net.Listener) error {
 
 		tcpWg.Add(1)
 		go func() {
+			// Ignore error here, it is most probably a legit one
+			// if not, it's written to the debug log
 			_ = s.handleTCPConnection(conn, certTxt)
 
 			// Clean up
@@ -136,7 +114,41 @@ func (s *Server) ServeTCP(l net.Listener) error {
 	return nil
 }
 
-// handleTCPMsg - handles a single TCP message. If this method returns error
+// prepareServeTCP prepares the server and listener to serving DNSCrypt
+func (s *Server) prepareServeTCP(l net.Listener) error {
+	// Check that server is properly configured
+	if !s.validate() {
+		return ErrServerConfig
+	}
+
+	// Protect shutdown-related fields
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	// Mark the server as started if needed
+	s.init()
+	s.started = true
+
+	// Track an active TCP listener
+	s.tcpListeners[l] = struct{}{}
+	return nil
+}
+
+// cleanUpTCP waits until all TCP messages before cleaning up
+func (s *Server) cleanUpTCP(tcpWg *sync.WaitGroup, l net.Listener) {
+	// Wait until all TCP connections are processed
+	tcpWg.Wait()
+
+	// Not using it anymore so can be removed from the active listeners
+	s.lock.Lock()
+	delete(s.tcpListeners, l)
+	s.lock.Unlock()
+
+	// The work is finished
+	s.wg.Done()
+}
+
+// handleTCPMsg handles a single TCP message. If this method returns error
 // the connection will be closed
 func (s *Server) handleTCPMsg(b []byte, conn net.Conn, certTxt string) error {
 	if len(b) < minDNSPacketSize {
@@ -148,8 +160,7 @@ func (s *Server) handleTCPMsg(b []byte, conn net.Conn, certTxt string) error {
 		// This is an encrypted message, we should decrypt it
 		m, q, err := s.decrypt(b)
 		if err != nil {
-			log.Tracef("failed to decrypt incoming message: %v", err)
-			return err
+			return fmt.Errorf("failed to decrypt incoming message: %w", err)
 		}
 		rw := &TCPResponseWriter{
 			tcpConn: conn,
@@ -159,28 +170,27 @@ func (s *Server) handleTCPMsg(b []byte, conn net.Conn, certTxt string) error {
 		}
 		err = s.serveDNS(rw, m)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to process a DNS query: %w", err)
 		}
 	} else {
 		// Most likely this a DNS message requesting the certificate
 		reply, err := s.handleHandshake(b, certTxt)
 		if err != nil {
-			log.Tracef("Failed to process a plain DNS query: %v", err)
-			return err
+			return fmt.Errorf("failed to process a plain DNS query: %w", err)
 		}
 		err = writePrefixed(reply, conn)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to write a response: %w", err)
 		}
 	}
 
 	return nil
 }
 
-// handleTCPConnection - handles all queries that are coming to the
+// handleTCPConnection handles all queries that are coming to the
 // specified TCP connection.
 func (s *Server) handleTCPConnection(conn net.Conn, certTxt string) error {
-	timeout := readTimeout
+	timeout := defaultReadTimeout
 
 	for s.isStarted() {
 		_ = conn.SetReadDeadline(time.Now().Add(timeout))
@@ -192,10 +202,11 @@ func (s *Server) handleTCPConnection(conn net.Conn, certTxt string) error {
 
 		err = s.handleTCPMsg(b, conn, certTxt)
 		if err != nil {
+			log.Debug("failed to process DNS query: %v", err)
 			return err
 		}
 
-		timeout = tcpIdleTimeout
+		timeout = defaultTCPIdleTimeout
 	}
 
 	return nil

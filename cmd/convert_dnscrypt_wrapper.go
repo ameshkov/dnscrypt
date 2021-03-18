@@ -12,7 +12,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// ConvertWrapperArgs - "convert-dnscrypt-wrapper" command arguments
+// ConvertWrapperArgs is the "convert-dnscrypt-wrapper" command arguments structure
 type ConvertWrapperArgs struct {
 	PrivateKeyFile string `short:"p" long:"private-key" description:"Path to the DNSCrypt resolver private key file that is used for signing certificates. Param is required." required:"true"`
 	ResolverSkFile string `short:"r" long:"resolver-secret" description:"Path to the Short-term privacy key file for encrypting/decrypting DNS queries. If not specified, resolver_secret and resolver_public will be randomly generated."`
@@ -21,7 +21,7 @@ type ConvertWrapperArgs struct {
 	CertificateTTL int    `short:"t" long:"ttl" description:"Certificate time-to-live (seconds)"`
 }
 
-// convertWrapper - generates DNSCrypt configuration from both dnscrypt and server private keys
+// convertWrapper generates DNSCrypt configuration from both dnscrypt and server private keys
 func convertWrapper(args ConvertWrapperArgs) {
 
 	log.Info("Generating configuration for %s", args.ProviderName)
@@ -71,7 +71,7 @@ func convertWrapper(args ConvertWrapperArgs) {
 	}
 }
 
-// validateRc - verifies that the certificate is correctly
+// validateRc verifies that the certificate is correctly
 // created and validated for this resolver config. if rc valid returns nil.
 func validateRc(rc dnscrypt.ResolverConfig, publicKey ed25519.PublicKey) error {
 	cert, err := rc.CreateCert()
@@ -90,7 +90,7 @@ func validateRc(rc dnscrypt.ResolverConfig, publicKey ed25519.PublicKey) error {
 	return nil
 }
 
-// getResolverPk - calculates public key from private key
+// getResolverPk calculates public key from private key
 func getResolverPk(private ed25519.PrivateKey) ed25519.PublicKey {
 	resolverSk := [32]byte{}
 	resolverPk := [32]byte{}

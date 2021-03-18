@@ -6,52 +6,52 @@ type Error string
 func (e Error) Error() string { return "dnscrypt: " + string(e) }
 
 const (
-	// ErrTooShort -- DNS query is shorter than possible
+	// ErrTooShort means that the DNS query is shorter than possible
 	ErrTooShort = Error("message is too short")
 
-	// ErrQueryTooLarge -- DNS query is larger than max allowed size
+	// ErrQueryTooLarge means that the DNS query is larger than max allowed size
 	ErrQueryTooLarge = Error("DNSCrypt query is too large")
 
-	// ErrEsVersion -- cert contains unsupported es-version
+	// ErrEsVersion means that the cert contains unsupported es-version
 	ErrEsVersion = Error("unsupported es-version")
 
-	// ErrInvalidDate -- cert is not valid for the current time
+	// ErrInvalidDate means that the cert is not valid for the current time
 	ErrInvalidDate = Error("cert has invalid ts-start or ts-end")
 
-	// ErrInvalidCertSignature -- cert has invalid signature
+	// ErrInvalidCertSignature means that the cert has invalid signature
 	ErrInvalidCertSignature = Error("cert has invalid signature")
 
-	// ErrInvalidQuery -- failed to decrypt a DNSCrypt query
+	// ErrInvalidQuery means that it failed to decrypt a DNSCrypt query
 	ErrInvalidQuery = Error("DNSCrypt query is invalid and cannot be decrypted")
 
-	// ErrInvalidClientMagic -- client-magic does not match
+	// ErrInvalidClientMagic means that client-magic does not match
 	ErrInvalidClientMagic = Error("DNSCrypt query contains invalid client magic")
 
-	// ErrInvalidResolverMagic -- server-magic does not match
+	// ErrInvalidResolverMagic means that server-magic does not match
 	ErrInvalidResolverMagic = Error("DNSCrypt response contains invalid resolver magic")
 
-	// ErrInvalidResponse -- failed to decrypt a DNSCrypt response
+	// ErrInvalidResponse means that it failed to decrypt a DNSCrypt response
 	ErrInvalidResponse = Error("DNSCrypt response is invalid and cannot be decrypted")
 
-	// ErrInvalidPadding -- failed to unpad a query
+	// ErrInvalidPadding means that it failed to unpad a query
 	ErrInvalidPadding = Error("invalid padding")
 
-	// ErrInvalidDNSStamp -- invalid DNS stamp
+	// ErrInvalidDNSStamp means an invalid DNS stamp
 	ErrInvalidDNSStamp = Error("invalid DNS stamp")
 
-	// ErrFailedToFetchCert -- failed to fetch DNSCrypt certificate
+	// ErrFailedToFetchCert means that it failed to fetch DNSCrypt certificate
 	ErrFailedToFetchCert = Error("failed to fetch DNSCrypt certificate")
 
-	// ErrCertTooShort -- failed to deserialize cert, too short
+	// ErrCertTooShort means that it failed to deserialize cert, too short
 	ErrCertTooShort = Error("cert is too short")
 
-	// ErrCertMagic -- invalid cert magic
+	// ErrCertMagic means an invalid cert magic
 	ErrCertMagic = Error("invalid cert magic")
 
-	// ErrServerConfig -- failed to start the DNSCrypt server - invalid configuration
+	// ErrServerConfig means that it failed to start the DNSCrypt server - invalid configuration
 	ErrServerConfig = Error("invalid server configuration")
 
-	// ErrServerNotStarted -- returned if there's nothing to shutdown
+	// ErrServerNotStarted is returned if there's nothing to shutdown
 	ErrServerNotStarted = Error("server is not started")
 )
 

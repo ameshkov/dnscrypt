@@ -17,7 +17,7 @@ import (
 func TestServer_Shutdown(t *testing.T) {
 	srv := newTestServer(t, &testHandler{})
 	time.Sleep(defaultReadTimeout)
-	assert.Nil(t, srv.Close())
+	assert.NoError(t, srv.Close())
 }
 
 func TestServer_UDPServeCert(t *testing.T) {
@@ -38,7 +38,9 @@ func TestServer_TCPRespondMessages(t *testing.T) {
 
 func testServerServeCert(t *testing.T, network string) {
 	srv := newTestServer(t, &testHandler{})
-	defer assert.Nil(t, srv.Close())
+	t.Cleanup(func() {
+		assert.NoError(t, srv.Close())
+	})
 
 	client := &Client{
 		Net:     network,
@@ -73,8 +75,7 @@ func testServerServeCert(t *testing.T, network string) {
 func testServerRespondMessages(t *testing.T, network string) {
 	srv := newTestServer(t, &testHandler{})
 	t.Cleanup(func() {
-		err := srv.Close()
-		assert.NoError(t, err)
+		assert.NoError(t, srv.Close())
 	})
 
 	client := &Client{

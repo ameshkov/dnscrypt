@@ -210,6 +210,9 @@ func setUDPSocketOptions(conn *net.UDPConn) error {
 	err6 := ipv6.NewPacketConn(conn).SetControlMessage(ipv6.FlagDst|ipv6.FlagInterface, true)
 	err4 := ipv4.NewPacketConn(conn).SetControlMessage(ipv4.FlagDst|ipv4.FlagInterface, true)
 	if err6 != nil && err4 != nil {
+		// The code comes from miekg/dns and tbh I have no idea why this is the only case
+		// where the error is not ignored. However, since it works for others, let's keep
+		// it this way :)
 		return err4
 	}
 	return nil

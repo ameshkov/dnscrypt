@@ -14,25 +14,31 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestServerUDPServeCert(t *testing.T) {
+func TestServer_Shutdown(t *testing.T) {
+	srv := newTestServer(t, &testHandler{})
+	time.Sleep(defaultReadTimeout)
+	assert.Nil(t, srv.Close())
+}
+
+func TestServer_UDPServeCert(t *testing.T) {
 	testServerServeCert(t, "udp")
 }
 
-func TestServerTCPServeCert(t *testing.T) {
+func TestServer_TCPServeCert(t *testing.T) {
 	testServerServeCert(t, "tcp")
 }
 
-func TestServerUDPRespondMessages(t *testing.T) {
+func TestServer_UDPRespondMessages(t *testing.T) {
 	testServerRespondMessages(t, "udp")
 }
 
-func TestServerTCPRespondMessages(t *testing.T) {
+func TestServer_TCPRespondMessages(t *testing.T) {
 	testServerRespondMessages(t, "tcp")
 }
 
 func testServerServeCert(t *testing.T, network string) {
 	srv := newTestServer(t, &testHandler{})
-	defer srv.Close()
+	defer assert.Nil(t, srv.Close())
 
 	client := &Client{
 		Net:     network,

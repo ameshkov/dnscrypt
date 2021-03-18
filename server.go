@@ -50,6 +50,9 @@ type Server struct {
 	// Handler to invoke. If nil, uses DefaultHandler.
 	Handler Handler
 
+	// make sure init is called only once
+	initOnce sync.Once
+
 	// Shutdown handling
 	// --
 	lock         sync.RWMutex // protects access to all the fields below
@@ -125,25 +128,20 @@ func (s *Server) Shutdown(ctx context.Context) error {
 
 	// Wait for either all goroutines finish their work
 	// Or for the context deadline
-	var ctxErr error
 	select {
 	case <-closed:
 		log.Info("DNSCrypt server has been stopped")
 	case <-ctx.Done():
 		log.Info("DNSCrypt server shutdown has timed out")
-		ctxErr = ctx.Err()
+		err = ctx.Err()
 	}
 
-	return ctxErr
+	return err
 }
 
 // init initializes (lazily) Server properties on startup
 // this method is called from Server.ServeTCP and Server.ServeUDP
 func (s *Server) init() {
-	if s.started && s.tcpConns != nil {
-		// The server has already been started, no need to initialize anything
-		return
-	}
 	s.tcpConns = map[net.Conn]struct{}{}
 	s.udpListeners = map[*net.UDPConn]struct{}{}
 	s.tcpListeners = map[net.Listener]struct{}{}

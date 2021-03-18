@@ -2,6 +2,7 @@ package dnscrypt
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"net"
 	"sync"
@@ -54,7 +55,7 @@ func (s *Server) ServeTCP(l net.Listener) error {
 		return err
 	}
 
-	log.Info("Entering DNSCrypt TCP listening loop tcp://%s", l.Addr().String())
+	log.Info("Entering DNSCrypt TCP listening loop tcp://%s", l.Addr())
 
 	// Tracks TCP connection handling goroutines
 	tcpWg := &sync.WaitGroup{}
@@ -78,7 +79,8 @@ func (s *Server) ServeTCP(l net.Listener) error {
 				// Stopped gracefully
 				break
 			}
-			if netErr, ok := err.(net.Error); ok && netErr.Temporary() {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Temporary() {
 				// Note that timeout errors will be here (i.e. hitting ReadDeadline)
 				continue
 			}
@@ -124,9 +126,9 @@ func (s *Server) prepareServeTCP(l net.Listener) error {
 	// Protect shutdown-related fields
 	s.lock.Lock()
 	defer s.lock.Unlock()
+	s.initOnce.Do(s.init)
 
 	// Mark the server as started if needed
-	s.init()
 	s.started = true
 
 	// Track an active TCP listener

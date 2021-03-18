@@ -2,6 +2,7 @@ package dnscrypt
 
 import (
 	"bytes"
+	"errors"
 	"net"
 	"runtime"
 	"sync"
@@ -66,7 +67,7 @@ func (s *Server) ServeUDP(l *net.UDPConn) error {
 	// Track active goroutine
 	s.wg.Add(1)
 
-	log.Info("Entering DNSCrypt UDP listening loop on udp://%s", l.LocalAddr().String())
+	log.Info("Entering DNSCrypt UDP listening loop on udp://%s", l.LocalAddr())
 
 	// Serialize the cert right away and prepare it to be sent to the client
 	certTxt, err := s.getCertTXT()
@@ -83,7 +84,8 @@ func (s *Server) ServeUDP(l *net.UDPConn) error {
 				// Stopped gracefully
 				return nil
 			}
-			if netErr, ok := err.(net.Error); ok && netErr.Temporary() {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Temporary() {
 				// Note that timeout errors will be here (i.e. hitting ReadDeadline)
 				continue
 			}
@@ -126,7 +128,7 @@ func (s *Server) prepareServeUDP(l *net.UDPConn) error {
 	// Protect shutdown-related fields
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	s.init()
+	s.initOnce.Do(s.init)
 
 	// Mark the server as started.
 	// Note that we don't check if it was started before as

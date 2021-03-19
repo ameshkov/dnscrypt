@@ -24,11 +24,11 @@ func testDNSCryptResponseEncryptDecrypt(t *testing.T, esVersion CryptoConstructi
 
 	// Generate client shared key
 	clientSharedKey, err := computeSharedKey(esVersion, &clientSecretKey, &serverPublicKey)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	// Generate server shared key
 	serverSharedKey, err := computeSharedKey(esVersion, &serverSecretKey, &clientPublicKey)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	r1 := &EncryptedResponse{
 		EsVersion: esVersion,
@@ -42,7 +42,7 @@ func testDNSCryptResponseEncryptDecrypt(t *testing.T, esVersion CryptoConstructi
 
 	// Encrypt it
 	encrypted, err := r1.Encrypt(packet, serverSharedKey)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	// Now let's try decrypting it
 	r2 := &EncryptedResponse{
@@ -51,7 +51,7 @@ func testDNSCryptResponseEncryptDecrypt(t *testing.T, esVersion CryptoConstructi
 
 	// Decrypt it
 	decrypted, err := r2.Decrypt(encrypted, clientSharedKey)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	// Check that packet is the same
 	assert.True(t, bytes.Equal(packet, decrypted))

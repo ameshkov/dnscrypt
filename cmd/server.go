@@ -13,7 +13,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// ServerArgs - "server" command arguments
+// ServerArgs is the "server" command arguments
 type ServerArgs struct {
 	Config      string   `short:"c" long:"config" description:"Path to the DNSCrypt configuration file. Param is required." required:"true"`
 	Forward     string   `short:"f" long:"forward" description:"Forwards DNS queries to the specified address" default:"94.140.14.140:53"`
@@ -21,7 +21,7 @@ type ServerArgs struct {
 	ListenPorts []int    `short:"p" long:"port" description:"Listening ports" default:"443"`
 }
 
-// server - runs a DNSCrypt server
+// server runs a DNSCrypt server
 func server(args ServerArgs) {
 	log.Info("Starting DNSCrypt server")
 
@@ -72,7 +72,7 @@ func server(args ServerArgs) {
 	}
 }
 
-// createListeners - creates listeners for our server
+// createListeners creates listeners for our server
 func createListeners(args ServerArgs) (tcp []net.Listener, udp []*net.UDPConn) {
 	for _, addr := range args.ListenAddrs {
 		ip := net.ParseIP(addr)
@@ -101,7 +101,10 @@ type forwardHandler struct {
 	addr string
 }
 
-// ServeDNS - implements Handler interface
+// type check
+var _ dnscrypt.Handler = &forwardHandler{}
+
+// ServeDNS implements Handler interface
 func (f *forwardHandler) ServeDNS(rw dnscrypt.ResponseWriter, r *dns.Msg) error {
 	res, err := dns.Exchange(r, f.addr)
 	if err != nil {

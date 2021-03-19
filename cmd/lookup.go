@@ -12,7 +12,7 @@ import (
 	"github.com/miekg/dns"
 )
 
-// LookupStampArgs - "lookup-stamp" command arguments
+// LookupStampArgs is the "lookup-stamp" command arguments structure
 type LookupStampArgs struct {
 	Network string `short:"n" long:"network" description:"network type (tcp/udp)" default:"udp"`
 	Stamp   string `short:"s" long:"stamp" description:"DNSCrypt resolver stamp. Param is required." required:"true"`
@@ -20,7 +20,7 @@ type LookupStampArgs struct {
 	Type    string `short:"t" long:"type" description:"DNS query type" default:"A"`
 }
 
-// LookupArgs - "lookup" command arguments
+// LookupArgs is the "lookup" command arguments structure
 type LookupArgs struct {
 	Network      string `short:"n" long:"network" description:"network type (tcp/udp)" default:"udp"`
 	ProviderName string `short:"p" long:"provider-name" description:"DNSCrypt resolver provider name. Param is required." required:"true"`
@@ -30,7 +30,7 @@ type LookupArgs struct {
 	Type         string `short:"t" long:"type" description:"DNS query type" default:"A"`
 }
 
-// LookupResult - lookup result that contains the cert info and the query response
+// LookupResult is the lookup result that contains the cert info and the query response
 type LookupResult struct {
 	Certificate struct {
 		Serial    uint32    `json:"serial"`
@@ -42,7 +42,7 @@ type LookupResult struct {
 	Reply *dns.Msg `json:"reply"`
 }
 
-// lookup - performs a DNS lookup, prints DNSCrypt info and lookup results
+// lookup performs a DNS lookup, prints DNSCrypt info and lookup results
 func lookup(args LookupArgs) {
 	serverPk, err := dnscrypt.HexDecodeKey(args.PublicKey)
 	if err != nil {
@@ -64,7 +64,7 @@ func lookup(args LookupArgs) {
 	})
 }
 
-// lookupStamp - performs a DNS lookup, prints DNSCrypt cert info and lookup results
+// lookupStamp performs a DNS lookup, prints DNSCrypt cert info and lookup results
 func lookupStamp(args LookupStampArgs) {
 	c := &dnscrypt.Client{
 		Net:     args.Network,

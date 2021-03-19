@@ -1,13 +1,13 @@
 package dnscrypt
 
 import (
+	"context"
 	"net"
 	"sync"
 	"time"
 
 	"github.com/AdguardTeam/golibs/log"
 	"github.com/miekg/dns"
-	"golang.org/x/net/context"
 )
 
 // default read timeout for all reads
@@ -81,15 +81,17 @@ func (s *Server) prepareShutdown() error {
 
 	s.started = false
 
-	// Unblock reads for all active tcpConns
-	for conn := range s.tcpConns {
-		_ = conn.SetReadDeadline(longTimeAgo)
-	}
-
 	// These listeners were passed to us from the outside so we cannot close
 	// them here - this is up to the calling code to do that. Instead of that,
 	// we call Set(Read)Deadline to unblock goroutines that are currently
 	// blocked on reading from those listeners.
+	// For tcpConns we would like to avoid closing them to be able to process
+	// queries before shutting everything down.
+
+	// Unblock reads for all active tcpConns
+	for conn := range s.tcpConns {
+		_ = conn.SetReadDeadline(longTimeAgo)
+	}
 
 	// Unblock reads for all active TCP listeners
 	for l := range s.tcpListeners {

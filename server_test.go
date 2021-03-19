@@ -16,7 +16,6 @@ import (
 
 func TestServer_Shutdown(t *testing.T) {
 	srv := newTestServer(t, &testHandler{})
-	time.Sleep(defaultReadTimeout)
 	assert.NoError(t, srv.Close())
 }
 
@@ -34,6 +33,19 @@ func TestServer_UDPRespondMessages(t *testing.T) {
 
 func TestServer_TCPRespondMessages(t *testing.T) {
 	testServerRespondMessages(t, "tcp")
+}
+
+func TestServer_ReadTimeout(t *testing.T) {
+	srv := newTestServer(t, &testHandler{})
+	t.Cleanup(func() {
+		assert.NoError(t, srv.Close())
+	})
+	// Sleep for "defaultReadTimeout" before trying to shutdown the server
+	// The point is to make sure readTimeout is properly handled by
+	// the "Serve*" goroutines and they don't finish their work unexpectedly
+	time.Sleep(defaultReadTimeout)
+	testThisServerRespondMessages(t, "udp", srv)
+	testThisServerRespondMessages(t, "tcp", srv)
 }
 
 func testServerServeCert(t *testing.T, network string) {
@@ -77,7 +89,10 @@ func testServerRespondMessages(t *testing.T, network string) {
 	t.Cleanup(func() {
 		assert.NoError(t, srv.Close())
 	})
+	testThisServerRespondMessages(t, network, srv)
+}
 
+func testThisServerRespondMessages(t *testing.T, network string, srv *testServer) {
 	client := &Client{
 		Timeout: 1 * time.Second,
 		Net:     network,

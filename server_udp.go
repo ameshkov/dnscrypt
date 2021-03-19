@@ -168,26 +168,10 @@ func (s *Server) readUDPMsg(l *net.UDPConn) ([]byte, *dns.SessionUDP, error) {
 
 // serveUDPMsg handles incoming DNS message
 func (s *Server) serveUDPMsg(b []byte, certTxt string, sess *dns.SessionUDP, l *net.UDPConn) {
-	if bytes.Equal(b[:clientMagicSize], s.ResolverCert.ClientMagic[:]) {
-		// This is an encrypted message, we should decrypt it
-		m, q, err := s.decrypt(b)
-		if err == nil {
-			rw := &UDPResponseWriter{
-				udpConn: l,
-				sess:    sess,
-				encrypt: s.encrypt,
-				req:     m,
-				query:   q,
-			}
-			err = s.serveDNS(rw, m)
-			if err != nil {
-				log.Tracef("failed to process a DNS query: %v", err)
-			}
-		} else {
-			log.Tracef("failed to decrypt incoming message len=%d: %v", len(b), err)
-		}
-	} else {
-		// Most likely this a DNS message requesting the certificate
+	// First of all, check for "ClientMagic" in the incoming query
+	if !bytes.Equal(b[:clientMagicSize], s.ResolverCert.ClientMagic[:]) {
+		// If there's no ClientMagic in the packet, we assume this
+		// is a plain DNS query requesting the certificate data
 		reply, err := s.handleHandshake(b, certTxt)
 		if err != nil {
 			log.Tracef("failed to process a plain DNS query: %v", err)
@@ -196,6 +180,27 @@ func (s *Server) serveUDPMsg(b []byte, certTxt string, sess *dns.SessionUDP, l *
 			// Ignore errors, we don't care and can't handle them anyway
 			_, _ = dns.WriteToSessionUDP(l, reply, sess)
 		}
+
+		return
+	}
+
+	// If we got here, this is an encrypted DNSCrypt message
+	// We should decrypt it first to get the plain DNS query
+	m, q, err := s.decrypt(b)
+	if err == nil {
+		rw := &UDPResponseWriter{
+			udpConn: l,
+			sess:    sess,
+			encrypt: s.encrypt,
+			req:     m,
+			query:   q,
+		}
+		err = s.serveDNS(rw, m)
+		if err != nil {
+			log.Tracef("failed to process a DNS query: %v", err)
+		}
+	} else {
+		log.Tracef("failed to decrypt incoming message len=%d: %v", len(b), err)
 	}
 }
 

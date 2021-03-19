@@ -6,6 +6,7 @@ import (
 	"crypto/ed25519"
 	"fmt"
 	"net"
+	"runtime"
 	"testing"
 	"time"
 
@@ -15,7 +16,14 @@ import (
 )
 
 func TestServer_Shutdown(t *testing.T) {
+	n := runtime.GOMAXPROCS(1)
+	t.Cleanup(func() {
+		runtime.GOMAXPROCS(n)
+	})
 	srv := newTestServer(t, &testHandler{})
+	// Serve* methods are called in different goroutines
+	// give them at least a moment to actually start the server
+	time.Sleep(10 * time.Millisecond)
 	assert.NoError(t, srv.Close())
 }
 

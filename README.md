@@ -29,6 +29,10 @@ Please note, that even though this tool can work as a server, it's purpose is me
 
 Download and unpack an archive for your platform from the [latest release](https://github.com/ameshkov/dnscrypt/releases).
 
+Homebrew:
+```
+brew install ameshkov/tap/dnscrypt
+```
 
 ### <a id="configure"></a> How to configure
 

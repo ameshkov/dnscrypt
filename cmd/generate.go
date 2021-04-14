@@ -47,4 +47,6 @@ func generate(args GenerateArgs) {
 
 	log.Info("Configuration has been written to %s", args.Out)
 	log.Info("Go to https://dnscrypt.info/stamps to generate an SDNS stamp")
+	log.Info("You can run a DNSCrypt server using the following command:")
+	log.Info("dnscrypt server -c %s -f 8.8.8.8", args.Out)
 }

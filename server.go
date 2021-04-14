@@ -3,6 +3,7 @@ package dnscrypt
 import (
 	"context"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -158,7 +159,7 @@ func (s *Server) isStarted() bool {
 	return started
 }
 
-// serveDNS serves DNS response
+// serveDNS serves a DNS response
 func (s *Server) serveDNS(rw ResponseWriter, r *dns.Msg) error {
 	if r == nil || len(r.Question) != 1 || r.Response {
 		return ErrInvalidQuery
@@ -240,7 +241,8 @@ func (s *Server) handleHandshake(b []byte, certTxt string) ([]byte, error) {
 
 	q := m.Question[0]
 	providerName := dns.Fqdn(s.ProviderName)
-	if q.Qtype != dns.TypeTXT || q.Name != providerName {
+	qName := strings.ToLower(q.Name) // important, may be random case
+	if q.Qtype != dns.TypeTXT || qName != providerName {
 		// Invalid provider name or type, doing nothing
 		return nil, ErrInvalidQuery
 	}
@@ -259,6 +261,10 @@ func (s *Server) handleHandshake(b []byte, certTxt string) ([]byte, error) {
 		},
 	}
 	reply.Answer = append(reply.Answer, txt)
+
+	// These bits are important for the old dnscrypt-proxy versions
+	reply.Authoritative = true
+	reply.RecursionAvailable = true
 	return reply.Pack()
 }
 

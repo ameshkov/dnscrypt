@@ -135,6 +135,10 @@ You can also send a DNSCrypt request using a command that does not require stamp
 ### <a id="client"></a> Client
 
 ```go
+import (
+    "github.com/ameshkov/dnscrypt/v2"
+)
+
 // AdGuard DNS stamp
 stampStr := "sdns://AQMAAAAAAAAAETk0LjE0MC4xNC4xNDo1NDQzINErR_JS3PLCu_iZEIbq95zkSV2LFsigxDIuUso_OQhzIjIuZG5zY3J5cHQuZGVmYXVsdC5uczEuYWRndWFyZC5jb20"
 
@@ -166,6 +170,10 @@ reply, err := c.Exchange(&req, resolverInfo)
 ## <a id="server"></a> Server
 
 ```go
+import (
+    "github.com/ameshkov/dnscrypt/v2"
+)
+
 // Prepare the test DNSCrypt server config
 rc, err := dnscrypt.GenerateResolverConfig("example.org", nil)
 if err != nil {

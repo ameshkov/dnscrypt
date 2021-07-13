@@ -48,6 +48,10 @@ type Server struct {
 	// ResolverCert contains resolver certificate.
 	ResolverCert *Cert
 
+	// UDPSize is the default buffer size to use to read incoming UDP messages.
+	// If not set it defaults to dns.MinMsgSize (512 B).
+	UDPSize int
+
 	// Handler to invoke. If nil, uses DefaultHandler.
 	Handler Handler
 
@@ -148,6 +152,10 @@ func (s *Server) init() {
 	s.tcpConns = map[net.Conn]struct{}{}
 	s.udpListeners = map[*net.UDPConn]struct{}{}
 	s.tcpListeners = map[net.Listener]struct{}{}
+
+	if s.UDPSize == 0 {
+		s.UDPSize = dns.MinMsgSize
+	}
 }
 
 // isStarted returns true if the server is processing queries right now

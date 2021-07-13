@@ -56,6 +56,85 @@ func TestServer_ReadTimeout(t *testing.T) {
 	testThisServerRespondMessages(t, "tcp", srv)
 }
 
+func TestServer_UDPTruncateMessage(t *testing.T) {
+	// Create a test server that returns large response which should be
+	// truncated if sent over UDP
+	srv := newTestServer(t, &testLargeMsgHandler{})
+	t.Cleanup(func() {
+		require.NoError(t, srv.Close())
+	})
+
+	// Create client and connect
+	client := &Client{
+		Timeout: 1 * time.Second,
+		Net:     "udp",
+	}
+	serverAddr := fmt.Sprintf("127.0.0.1:%d", srv.UDPAddr().Port)
+	stamp := dnsstamps.ServerStamp{
+		ServerAddrStr: serverAddr,
+		ServerPk:      srv.resolverPk,
+		ProviderName:  srv.server.ProviderName,
+		Proto:         dnsstamps.StampProtoTypeDNSCrypt,
+	}
+	ri, err := client.DialStamp(stamp)
+	require.NoError(t, err)
+	require.NotNil(t, ri)
+
+	// Send a test message and check that the response was truncated
+	m := createTestMessage()
+	res, err := client.Exchange(m, ri)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, dns.RcodeSuccess, res.Rcode)
+	require.Len(t, res.Answer, 0)
+	require.True(t, res.Truncated)
+}
+
+func TestServer_UDPEDNS0_NoTruncate(t *testing.T) {
+	// Create a test server that returns large response which should be
+	// truncated if sent over UDP
+	// However, when EDNS0 is set with the buffer large enough, there should
+	// be no truncation
+	srv := newTestServer(t, &testLargeMsgHandler{})
+	t.Cleanup(func() {
+		require.NoError(t, srv.Close())
+	})
+
+	// Create client and connect
+	client := &Client{
+		Timeout: 1 * time.Second,
+		Net:     "udp",
+		UDPSize: 7000, // make sure the client will be able to read the response
+	}
+	serverAddr := fmt.Sprintf("127.0.0.1:%d", srv.UDPAddr().Port)
+	stamp := dnsstamps.ServerStamp{
+		ServerAddrStr: serverAddr,
+		ServerPk:      srv.resolverPk,
+		ProviderName:  srv.server.ProviderName,
+		Proto:         dnsstamps.StampProtoTypeDNSCrypt,
+	}
+	ri, err := client.DialStamp(stamp)
+	require.NoError(t, err)
+	require.NotNil(t, ri)
+
+	// Send a test message with UDP buffer size large enough
+	// and check that the response was NOT truncated
+	m := createTestMessage()
+	m.Extra = append(m.Extra, &dns.OPT{
+		Hdr: dns.RR_Header{
+			Name:   ".",
+			Rrtype: dns.TypeOPT,
+			Class:  2000, // Set large enough UDPSize here
+		},
+	})
+	res, err := client.Exchange(m, ri)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, dns.RcodeSuccess, res.Rcode)
+	require.Len(t, res.Answer, 64)
+	require.False(t, res.Truncated)
+}
+
 func testServerServeCert(t *testing.T, network string) {
 	srv := newTestServer(t, &testHandler{})
 	t.Cleanup(func() {
@@ -193,9 +272,9 @@ type testHandler struct{}
 
 // ServeDNS - implements Handler interface
 func (h *testHandler) ServeDNS(rw ResponseWriter, r *dns.Msg) error {
-	// Google DNS
 	res := new(dns.Msg)
 	res.SetReply(r)
+
 	answer := new(dns.A)
 	answer.Hdr = dns.RR_Header{
 		Name:   r.Question[0].Name,
@@ -203,7 +282,34 @@ func (h *testHandler) ServeDNS(rw ResponseWriter, r *dns.Msg) error {
 		Ttl:    300,
 		Class:  dns.ClassINET,
 	}
+	// First record is from Google DNS
 	answer.A = net.IPv4(8, 8, 8, 8)
 	res.Answer = append(res.Answer, answer)
+
+	return rw.WriteMsg(res)
+}
+
+// testLargeMsgHandler is a handler that returns a huge response
+// used for testing messages truncation
+type testLargeMsgHandler struct{}
+
+// ServeDNS - implements Handler interface
+func (h *testLargeMsgHandler) ServeDNS(rw ResponseWriter, r *dns.Msg) error {
+	res := new(dns.Msg)
+	res.SetReply(r)
+
+	for i := 0; i < 64; i++ {
+		answer := new(dns.A)
+		answer.Hdr = dns.RR_Header{
+			Name:   r.Question[0].Name,
+			Rrtype: dns.TypeA,
+			Ttl:    300,
+			Class:  dns.ClassINET,
+		}
+		answer.A = net.IPv4(127, 0, 0, byte(i))
+		res.Answer = append(res.Answer, answer)
+	}
+
+	res.Compress = true
 	return rw.WriteMsg(res)
 }

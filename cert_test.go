@@ -8,51 +8,51 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCertSerialize(t *testing.T) {
 	cert, publicKey, _ := generateValidCert(t)
 
 	// not empty anymore
-	assert.False(t, bytes.Equal(cert.Signature[:], make([]byte, 64)))
+	require.False(t, bytes.Equal(cert.Signature[:], make([]byte, 64)))
 
 	// verify the signature
-	assert.True(t, cert.VerifySignature(publicKey))
+	require.True(t, cert.VerifySignature(publicKey))
 
 	// serialize
 	b, err := cert.Serialize()
-	assert.NoError(t, err)
-	assert.Equal(t, 124, len(b))
+	require.NoError(t, err)
+	require.Equal(t, 124, len(b))
 
 	// check that we can deserialize it
 	cert2 := Cert{}
 	err = cert2.Deserialize(b)
-	assert.NoError(t, err)
-	assert.Equal(t, cert.Serial, cert2.Serial)
-	assert.Equal(t, cert.NotBefore, cert2.NotBefore)
-	assert.Equal(t, cert.NotAfter, cert2.NotAfter)
-	assert.Equal(t, cert.EsVersion, cert2.EsVersion)
-	assert.True(t, bytes.Equal(cert.ClientMagic[:], cert2.ClientMagic[:]))
-	assert.True(t, bytes.Equal(cert.ResolverPk[:], cert2.ResolverPk[:]))
-	assert.True(t, bytes.Equal(cert.Signature[:], cert2.Signature[:]))
+	require.NoError(t, err)
+	require.Equal(t, cert.Serial, cert2.Serial)
+	require.Equal(t, cert.NotBefore, cert2.NotBefore)
+	require.Equal(t, cert.NotAfter, cert2.NotAfter)
+	require.Equal(t, cert.EsVersion, cert2.EsVersion)
+	require.True(t, bytes.Equal(cert.ClientMagic[:], cert2.ClientMagic[:]))
+	require.True(t, bytes.Equal(cert.ResolverPk[:], cert2.ResolverPk[:]))
+	require.True(t, bytes.Equal(cert.Signature[:], cert2.Signature[:]))
 }
 
 func TestCertDeserialize(t *testing.T) {
 	// dig -t txt 2.dnscrypt-cert.opendns.com. -p 443 @208.67.220.220
 	certBytes, err := ioutil.ReadFile("testdata/dnscrypt-cert.opendns.txt")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	b, err := unpackTxtString(string(certBytes))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	cert := &Cert{}
 	err = cert.Deserialize(b)
-	assert.NoError(t, err)
-	assert.Equal(t, uint32(1574811744), cert.Serial)
-	assert.Equal(t, XSalsa20Poly1305, cert.EsVersion)
-	assert.Equal(t, uint32(1574811744), cert.NotBefore)
-	assert.Equal(t, uint32(1606347744), cert.NotAfter)
+	require.NoError(t, err)
+	require.Equal(t, uint32(1574811744), cert.Serial)
+	require.Equal(t, XSalsa20Poly1305, cert.EsVersion)
+	require.Equal(t, uint32(1574811744), cert.NotBefore)
+	require.Equal(t, uint32(1606347744), cert.NotAfter)
 }
 
 func generateValidCert(t *testing.T) (*Cert, ed25519.PublicKey, ed25519.PrivateKey) {
@@ -69,11 +69,11 @@ func generateValidCert(t *testing.T) (*Cert, ed25519.PublicKey, ed25519.PrivateK
 	copy(cert.ResolverSk[:], resolverSk[:])
 
 	// empty at first
-	assert.True(t, bytes.Equal(cert.Signature[:], make([]byte, 64)))
+	require.True(t, bytes.Equal(cert.Signature[:], make([]byte, 64)))
 
 	// generate private key
 	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// sign the data
 	cert.Sign(privateKey)

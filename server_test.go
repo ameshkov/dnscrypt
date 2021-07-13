@@ -12,7 +12,7 @@ import (
 
 	"github.com/ameshkov/dnsstamps"
 	"github.com/miekg/dns"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestServer_Shutdown(t *testing.T) {
@@ -24,7 +24,7 @@ func TestServer_Shutdown(t *testing.T) {
 	// Serve* methods are called in different goroutines
 	// give them at least a moment to actually start the server
 	time.Sleep(10 * time.Millisecond)
-	assert.NoError(t, srv.Close())
+	require.NoError(t, srv.Close())
 }
 
 func TestServer_UDPServeCert(t *testing.T) {
@@ -46,7 +46,7 @@ func TestServer_TCPRespondMessages(t *testing.T) {
 func TestServer_ReadTimeout(t *testing.T) {
 	srv := newTestServer(t, &testHandler{})
 	t.Cleanup(func() {
-		assert.NoError(t, srv.Close())
+		require.NoError(t, srv.Close())
 	})
 	// Sleep for "defaultReadTimeout" before trying to shutdown the server
 	// The point is to make sure readTimeout is properly handled by
@@ -59,7 +59,7 @@ func TestServer_ReadTimeout(t *testing.T) {
 func testServerServeCert(t *testing.T, network string) {
 	srv := newTestServer(t, &testHandler{})
 	t.Cleanup(func() {
-		assert.NoError(t, srv.Close())
+		require.NoError(t, srv.Close())
 	})
 
 	client := &Client{
@@ -79,23 +79,23 @@ func testServerServeCert(t *testing.T, network string) {
 		Proto:         dnsstamps.StampProtoTypeDNSCrypt,
 	}
 	ri, err := client.DialStamp(stamp)
-	assert.NoError(t, err)
-	assert.NotNil(t, ri)
+	require.NoError(t, err)
+	require.NotNil(t, ri)
 
-	assert.Equal(t, ri.ProviderName, srv.server.ProviderName)
-	assert.True(t, bytes.Equal(srv.server.ResolverCert.ClientMagic[:], ri.ResolverCert.ClientMagic[:]))
-	assert.Equal(t, srv.server.ResolverCert.EsVersion, ri.ResolverCert.EsVersion)
-	assert.Equal(t, srv.server.ResolverCert.Signature, ri.ResolverCert.Signature)
-	assert.Equal(t, srv.server.ResolverCert.NotBefore, ri.ResolverCert.NotBefore)
-	assert.Equal(t, srv.server.ResolverCert.NotAfter, ri.ResolverCert.NotAfter)
-	assert.True(t, bytes.Equal(srv.server.ResolverCert.ResolverPk[:], ri.ResolverCert.ResolverPk[:]))
-	assert.True(t, bytes.Equal(srv.server.ResolverCert.ResolverPk[:], ri.ResolverCert.ResolverPk[:]))
+	require.Equal(t, ri.ProviderName, srv.server.ProviderName)
+	require.True(t, bytes.Equal(srv.server.ResolverCert.ClientMagic[:], ri.ResolverCert.ClientMagic[:]))
+	require.Equal(t, srv.server.ResolverCert.EsVersion, ri.ResolverCert.EsVersion)
+	require.Equal(t, srv.server.ResolverCert.Signature, ri.ResolverCert.Signature)
+	require.Equal(t, srv.server.ResolverCert.NotBefore, ri.ResolverCert.NotBefore)
+	require.Equal(t, srv.server.ResolverCert.NotAfter, ri.ResolverCert.NotAfter)
+	require.True(t, bytes.Equal(srv.server.ResolverCert.ResolverPk[:], ri.ResolverCert.ResolverPk[:]))
+	require.True(t, bytes.Equal(srv.server.ResolverCert.ResolverPk[:], ri.ResolverCert.ResolverPk[:]))
 }
 
 func testServerRespondMessages(t *testing.T, network string) {
 	srv := newTestServer(t, &testHandler{})
 	t.Cleanup(func() {
-		assert.NoError(t, srv.Close())
+		require.NoError(t, srv.Close())
 	})
 	testThisServerRespondMessages(t, network, srv)
 }
@@ -118,16 +118,16 @@ func testThisServerRespondMessages(t *testing.T, network string, srv *testServer
 		Proto:         dnsstamps.StampProtoTypeDNSCrypt,
 	}
 	ri, err := client.DialStamp(stamp)
-	assert.NoError(t, err)
-	assert.NotNil(t, ri)
+	require.NoError(t, err)
+	require.NotNil(t, ri)
 
 	conn, err := net.Dial(network, stamp.ServerAddrStr)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	for i := 0; i < 10; i++ {
 		m := createTestMessage()
 		res, err := client.ExchangeConn(conn, m, ri)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assertTestMessageResponse(t, res)
 	}
 }
@@ -159,11 +159,11 @@ func (s *testServer) Close() error {
 	return err
 }
 
-func newTestServer(t assert.TestingT, handler Handler) *testServer {
+func newTestServer(t require.TestingT, handler Handler) *testServer {
 	rc, err := GenerateResolverConfig("example.org", nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	cert, err := rc.CreateCert()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	s := &Server{
 		ProviderName: rc.ProviderName,
@@ -172,7 +172,7 @@ func newTestServer(t assert.TestingT, handler Handler) *testServer {
 	}
 
 	privateKey, err := HexDecodeKey(rc.PrivateKey)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	publicKey := ed25519.PrivateKey(privateKey).Public().(ed25519.PublicKey)
 	srv := &testServer{
 		server:     s,
@@ -180,9 +180,9 @@ func newTestServer(t assert.TestingT, handler Handler) *testServer {
 	}
 
 	srv.tcpListen, err = net.ListenTCP("tcp", &net.TCPAddr{IP: net.IPv4zero, Port: 0})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	srv.udpConn, err = net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4zero, Port: 0})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	go s.ServeUDP(srv.udpConn)
 	go s.ServeTCP(srv.tcpListen)

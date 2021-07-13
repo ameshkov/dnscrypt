@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/ameshkov/dnscrypt/v2/xsecretbox"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDNSCryptResponseEncryptDecryptXSalsa20Poly1305(t *testing.T) {
@@ -24,11 +24,11 @@ func testDNSCryptResponseEncryptDecrypt(t *testing.T, esVersion CryptoConstructi
 
 	// Generate client shared key
 	clientSharedKey, err := computeSharedKey(esVersion, &clientSecretKey, &serverPublicKey)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Generate server shared key
 	serverSharedKey, err := computeSharedKey(esVersion, &serverSecretKey, &clientPublicKey)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	r1 := &EncryptedResponse{
 		EsVersion: esVersion,
@@ -42,7 +42,7 @@ func testDNSCryptResponseEncryptDecrypt(t *testing.T, esVersion CryptoConstructi
 
 	// Encrypt it
 	encrypted, err := r1.Encrypt(packet, serverSharedKey)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Now let's try decrypting it
 	r2 := &EncryptedResponse{
@@ -51,22 +51,22 @@ func testDNSCryptResponseEncryptDecrypt(t *testing.T, esVersion CryptoConstructi
 
 	// Decrypt it
 	decrypted, err := r2.Decrypt(encrypted, clientSharedKey)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Check that packet is the same
-	assert.True(t, bytes.Equal(packet, decrypted))
+	require.True(t, bytes.Equal(packet, decrypted))
 
 	// Now check invalid data (some random stuff)
 	_, err = r2.Decrypt(packet, clientSharedKey)
-	assert.NotNil(t, err)
+	require.NotNil(t, err)
 
 	// Empty array
 	_, err = r2.Decrypt([]byte{}, clientSharedKey)
-	assert.NotNil(t, err)
+	require.NotNil(t, err)
 
 	// Minimum valid size
 	b := make([]byte, len(resolverMagic)+nonceSize+xsecretbox.TagSize+minDNSPacketSize)
 	_, _ = rand.Read(b)
 	_, err = r2.Decrypt(b, clientSharedKey)
-	assert.NotNil(t, err)
+	require.NotNil(t, err)
 }

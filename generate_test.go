@@ -5,34 +5,34 @@ import (
 	"crypto/ed25519"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHexEncodeKey(t *testing.T) {
 	str := HexEncodeKey([]byte{1, 2, 3, 4})
-	assert.Equal(t, "01020304", str)
+	require.Equal(t, "01020304", str)
 }
 
 func TestHexDecodeKey(t *testing.T) {
 	b, err := HexDecodeKey("01:02:03:04")
-	assert.NoError(t, err)
-	assert.True(t, bytes.Equal(b, []byte{1, 2, 3, 4}))
+	require.NoError(t, err)
+	require.True(t, bytes.Equal(b, []byte{1, 2, 3, 4}))
 }
 
 func TestGenerateResolverConfig(t *testing.T) {
 	rc, err := GenerateResolverConfig("example.org", nil)
-	assert.NoError(t, err)
-	assert.Equal(t, "2.dnscrypt-cert.example.org", rc.ProviderName)
-	assert.Equal(t, ed25519.PrivateKeySize*2, len(rc.PrivateKey))
-	assert.Equal(t, keySize*2, len(rc.ResolverSk))
-	assert.Equal(t, keySize*2, len(rc.ResolverPk))
+	require.NoError(t, err)
+	require.Equal(t, "2.dnscrypt-cert.example.org", rc.ProviderName)
+	require.Equal(t, ed25519.PrivateKeySize*2, len(rc.PrivateKey))
+	require.Equal(t, keySize*2, len(rc.ResolverSk))
+	require.Equal(t, keySize*2, len(rc.ResolverPk))
 
 	cert, err := rc.CreateCert()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
-	assert.True(t, cert.VerifyDate())
+	require.True(t, cert.VerifyDate())
 
 	publicKey, err := HexDecodeKey(rc.PublicKey)
-	assert.NoError(t, err)
-	assert.True(t, cert.VerifySignature(publicKey))
+	require.NoError(t, err)
+	require.True(t, cert.VerifySignature(publicKey))
 }

@@ -8,7 +8,7 @@ import (
 
 	"github.com/ameshkov/dnsstamps"
 	"github.com/miekg/dns"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestParseStamp(t *testing.T) {
@@ -20,10 +20,10 @@ func TestParseStamp(t *testing.T) {
 		t.Fatalf("Could not parse stamp %s: %s", stampStr, err)
 	}
 
-	assert.Equal(t, stampStr, stamp.String())
-	assert.Equal(t, dnsstamps.StampProtoTypeDoH, stamp.Proto)
-	assert.Equal(t, "dns.google.com", stamp.ProviderName)
-	assert.Equal(t, "/experimental", stamp.Path)
+	require.Equal(t, stampStr, stamp.String())
+	require.Equal(t, dnsstamps.StampProtoTypeDoH, stamp.Proto)
+	require.Equal(t, "dns.google.com", stamp.ProviderName)
+	require.Equal(t, "/experimental", stamp.Path)
 
 	// AdGuard DNSCrypt
 	stampStr = "sdns://AQIAAAAAAAAAFDE3Ni4xMDMuMTMwLjEzMDo1NDQzINErR_JS3PLCu_iZEIbq95zkSV2LFsigxDIuUso_OQhzIjIuZG5zY3J5cHQuZGVmYXVsdC5uczEuYWRndWFyZC5jb20"
@@ -33,18 +33,18 @@ func TestParseStamp(t *testing.T) {
 		t.Fatalf("Could not parse stamp %s: %s", stampStr, err)
 	}
 
-	assert.Equal(t, stampStr, stamp.String())
-	assert.Equal(t, dnsstamps.StampProtoTypeDNSCrypt, stamp.Proto)
-	assert.Equal(t, "2.dnscrypt.default.ns1.adguard.com", stamp.ProviderName)
-	assert.Equal(t, "", stamp.Path)
-	assert.Equal(t, "176.103.130.130:5443", stamp.ServerAddrStr)
-	assert.Equal(t, keySize, len(stamp.ServerPk))
+	require.Equal(t, stampStr, stamp.String())
+	require.Equal(t, dnsstamps.StampProtoTypeDNSCrypt, stamp.Proto)
+	require.Equal(t, "2.dnscrypt.default.ns1.adguard.com", stamp.ProviderName)
+	require.Equal(t, "", stamp.Path)
+	require.Equal(t, "176.103.130.130:5443", stamp.ServerAddrStr)
+	require.Equal(t, keySize, len(stamp.ServerPk))
 }
 
 func TestInvalidStamp(t *testing.T) {
 	client := Client{}
 	_, err := client.Dial("sdns://AQIAAAAAAAAAFDE")
-	assert.NotNil(t, err)
+	require.NotNil(t, err)
 }
 
 func TestTimeoutOnDialError(t *testing.T) {
@@ -53,8 +53,8 @@ func TestTimeoutOnDialError(t *testing.T) {
 	client := Client{Timeout: 300 * time.Millisecond}
 
 	_, err := client.Dial(stampStr)
-	assert.NotNil(t, err)
-	assert.True(t, os.IsTimeout(err))
+	require.NotNil(t, err)
+	require.True(t, os.IsTimeout(err))
 }
 
 func TestTimeoutOnDialExchange(t *testing.T) {
@@ -63,7 +63,7 @@ func TestTimeoutOnDialExchange(t *testing.T) {
 	client := Client{Timeout: 300 * time.Millisecond}
 
 	serverInfo, err := client.Dial(stampStr)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Point it to an IP where there's no DNSCrypt server
 	serverInfo.ServerAddress = "8.8.8.8:5443"
@@ -73,8 +73,8 @@ func TestTimeoutOnDialExchange(t *testing.T) {
 	_, err = client.Exchange(req, serverInfo)
 
 	// Check error
-	assert.NotNil(t, err)
-	assert.True(t, os.IsTimeout(err))
+	require.NotNil(t, err)
+	require.True(t, os.IsTimeout(err))
 }
 
 func TestFetchCertPublicResolvers(t *testing.T) {
@@ -105,7 +105,7 @@ func TestFetchCertPublicResolvers(t *testing.T) {
 
 	for _, test := range stamps {
 		stamp, err := dnsstamps.NewServerStampFromString(test.stampStr)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		t.Run(stamp.ProviderName, func(t *testing.T) {
 			c := &Client{
@@ -113,10 +113,10 @@ func TestFetchCertPublicResolvers(t *testing.T) {
 				Timeout: time.Second * 5,
 			}
 			resolverInfo, err := c.DialStamp(stamp)
-			assert.NoError(t, err)
-			assert.NotNil(t, resolverInfo)
-			assert.True(t, resolverInfo.ResolverCert.VerifyDate())
-			assert.True(t, resolverInfo.ResolverCert.VerifySignature(stamp.ServerPk))
+			require.NoError(t, err)
+			require.NotNil(t, resolverInfo)
+			require.True(t, resolverInfo.ResolverCert.VerifyDate())
+			require.True(t, resolverInfo.ResolverCert.VerifySignature(stamp.ServerPk))
 		})
 	}
 }
@@ -149,7 +149,7 @@ func TestExchangePublicResolvers(t *testing.T) {
 
 	for _, test := range stamps {
 		stamp, err := dnsstamps.NewServerStampFromString(test.stampStr)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		t.Run(stamp.ProviderName, func(t *testing.T) {
 			checkDNSCryptServer(t, test.stampStr, "udp")
@@ -161,12 +161,12 @@ func TestExchangePublicResolvers(t *testing.T) {
 func checkDNSCryptServer(t *testing.T, stampStr string, network string) {
 	client := Client{Net: network, Timeout: 10 * time.Second}
 	resolverInfo, err := client.Dial(stampStr)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	req := createTestMessage()
 
 	reply, err := client.Exchange(req, resolverInfo)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assertTestMessageResponse(t, reply)
 }
 
@@ -180,10 +180,10 @@ func createTestMessage() *dns.Msg {
 	return &req
 }
 
-func assertTestMessageResponse(t assert.TestingT, reply *dns.Msg) {
-	assert.NotNil(t, reply)
-	assert.Equal(t, 1, len(reply.Answer))
+func assertTestMessageResponse(t require.TestingT, reply *dns.Msg) {
+	require.NotNil(t, reply)
+	require.Equal(t, 1, len(reply.Answer))
 	a, ok := reply.Answer[0].(*dns.A)
-	assert.True(t, ok)
-	assert.Equal(t, net.IPv4(8, 8, 8, 8).To4(), a.A.To4())
+	require.True(t, ok)
+	require.Equal(t, net.IPv4(8, 8, 8, 8).To4(), a.A.To4())
 }

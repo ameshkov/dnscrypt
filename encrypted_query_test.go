@@ -5,7 +5,7 @@ import (
 	"crypto/rand"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDNSCryptQueryEncryptDecryptXSalsa20Poly1305(t *testing.T) {
@@ -23,7 +23,7 @@ func testDNSCryptQueryEncryptDecrypt(t *testing.T, esVersion CryptoConstruction)
 
 	// Generate client shared key
 	clientSharedKey, err := computeSharedKey(esVersion, &clientSecretKey, &serverPublicKey)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	clientMagic := [clientMagicSize]byte{}
 	_, _ = rand.Read(clientMagic[:])
@@ -40,7 +40,7 @@ func testDNSCryptQueryEncryptDecrypt(t *testing.T, esVersion CryptoConstruction)
 
 	// Encrypt it
 	encrypted, err := q1.Encrypt(packet, clientSharedKey)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Now let's try decrypting it
 	q2 := EncryptedQuery{
@@ -50,8 +50,8 @@ func testDNSCryptQueryEncryptDecrypt(t *testing.T, esVersion CryptoConstruction)
 
 	// Decrypt it
 	decrypted, err := q2.Decrypt(encrypted, serverSecretKey)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Check that packet is the same
-	assert.True(t, bytes.Equal(packet, decrypted))
+	require.True(t, bytes.Equal(packet, decrypted))
 }

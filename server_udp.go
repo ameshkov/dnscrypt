@@ -35,7 +35,7 @@ func (w *UDPResponseWriter) LocalAddr() net.Addr {
 
 // RemoteAddr is the client's address
 func (w *UDPResponseWriter) RemoteAddr() net.Addr {
-	return w.udpConn.RemoteAddr()
+	return w.sess.RemoteAddr()
 }
 
 // WriteMsg writes DNS message to the client

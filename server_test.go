@@ -216,7 +216,6 @@ type testServer struct {
 	resolverPk ed25519.PublicKey
 	udpConn    *net.UDPConn
 	tcpListen  net.Listener
-	handler    Handler
 }
 
 func (s *testServer) TCPAddr() *net.TCPAddr {

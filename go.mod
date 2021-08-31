@@ -1,5 +1,7 @@
 module github.com/ameshkov/dnscrypt/v2
 
+go 1.16
+
 require (
 	github.com/AdguardTeam/golibs v0.4.2
 	github.com/aead/chacha20 v0.0.0-20180709150244-8b13a72661da
@@ -13,5 +15,3 @@ require (
 	golang.org/x/sys v0.0.0-20200331124033-c3d80250170d // indirect
 	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c
 )
-
-go 1.14

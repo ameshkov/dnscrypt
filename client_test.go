@@ -78,36 +78,41 @@ func TestTimeoutOnDialExchange(t *testing.T) {
 }
 
 func TestFetchCertPublicResolvers(t *testing.T) {
-	stamps := []struct {
+	testCases := []struct {
+		name     string
 		stampStr string
 	}{
 		{
-			// AdGuard DNS
+			name:     "AdGuard DNS",
 			stampStr: "sdns://AQIAAAAAAAAAFDE3Ni4xMDMuMTMwLjEzMDo1NDQzINErR_JS3PLCu_iZEIbq95zkSV2LFsigxDIuUso_OQhzIjIuZG5zY3J5cHQuZGVmYXVsdC5uczEuYWRndWFyZC5jb20",
 		},
 		{
-			// AdGuard DNS Family
+			name:     "AdGuard DNS Family",
 			stampStr: "sdns://AQIAAAAAAAAAFDE3Ni4xMDMuMTMwLjEzMjo1NDQzILgxXdexS27jIKRw3C7Wsao5jMnlhvhdRUXWuMm1AFq6ITIuZG5zY3J5cHQuZmFtaWx5Lm5zMS5hZGd1YXJkLmNvbQ",
 		},
 		{
-			// AdGuard DNS Unfiltered
+			name:     "AdGuard DNS Unfiltered",
 			stampStr: "sdns://AQIAAAAAAAAAFDE3Ni4xMDMuMTMwLjEzNjo1NDQzILXoRNa4Oj4-EmjraB--pw3jxfpo29aIFB2_LsBmstr6JTIuZG5zY3J5cHQudW5maWx0ZXJlZC5uczEuYWRndWFyZC5jb20",
 		},
 		{
-			// Cisco OpenDNS
+			name:     "Cisco OpenDNS",
 			stampStr: "sdns://AQAAAAAAAAAADjIwOC42Ny4yMjAuMjIwILc1EUAgbyJdPivYItf9aR6hwzzI1maNDL4Ev6vKQ_t5GzIuZG5zY3J5cHQtY2VydC5vcGVuZG5zLmNvbQ",
 		},
 		{
-			// Cisco OpenDNS Family Shield
+			name:     "Cisco OpenDNS Family Shield",
 			stampStr: "sdns://AQAAAAAAAAAADjIwOC42Ny4yMjAuMTIzILc1EUAgbyJdPivYItf9aR6hwzzI1maNDL4Ev6vKQ_t5GzIuZG5zY3J5cHQtY2VydC5vcGVuZG5zLmNvbQ",
+		},
+		{
+			name:     "Quad9",
+			stampStr: "sdns://AQYAAAAAAAAAEzE0OS4xMTIuMTEyLjEwOjg0NDMgZ8hHuMh1jNEgJFVDvnVnRt803x2EwAuMRwNo34Idhj4ZMi5kbnNjcnlwdC1jZXJ0LnF1YWQ5Lm5ldA",
 		},
 	}
 
-	for _, test := range stamps {
-		stamp, err := dnsstamps.NewServerStampFromString(test.stampStr)
-		require.NoError(t, err)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			stamp, err := dnsstamps.NewServerStampFromString(tc.stampStr)
+			require.NoError(t, err)
 
-		t.Run(stamp.ProviderName, func(t *testing.T) {
 			c := &Client{
 				Net:     "udp",
 				Timeout: time.Second * 5,

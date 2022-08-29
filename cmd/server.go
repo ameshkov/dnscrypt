@@ -1,7 +1,6 @@
 package main
 
 import (
-	"io/ioutil"
 	"net"
 	"os"
 	"os/signal"
@@ -25,7 +24,7 @@ type ServerArgs struct {
 func server(args ServerArgs) {
 	log.Info("Starting DNSCrypt server")
 
-	b, err := ioutil.ReadFile(args.Config)
+	b, err := os.ReadFile(args.Config)
 	if err != nil {
 		log.Fatalf("failed to read the configuration: %v", err)
 	}

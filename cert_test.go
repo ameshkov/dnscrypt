@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"crypto/ed25519"
 	"crypto/rand"
-	"io/ioutil"
+	"os"
 	"testing"
 	"time"
 
@@ -40,7 +40,7 @@ func TestCertSerialize(t *testing.T) {
 
 func TestCertDeserialize(t *testing.T) {
 	// dig -t txt 2.dnscrypt-cert.opendns.com. -p 443 @208.67.220.220
-	certBytes, err := ioutil.ReadFile("testdata/dnscrypt-cert.opendns.txt")
+	certBytes, err := os.ReadFile("testdata/dnscrypt-cert.opendns.txt")
 	require.NoError(t, err)
 
 	b, err := unpackTxtString(string(certBytes))

@@ -3,7 +3,7 @@ package main
 import (
 	"crypto/ed25519"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"time"
 
 	"github.com/AdguardTeam/golibs/log"
@@ -65,7 +65,7 @@ func convertWrapper(args ConvertWrapperArgs) {
 		log.Fatalf("Failed to marshall output config, err: %s", err.Error())
 	}
 
-	err = ioutil.WriteFile(args.Out, out, 0600)
+	err = os.WriteFile(args.Out, out, 0600)
 	if err != nil {
 		log.Fatalf("Failed to write file, err: %s", err.Error())
 	}
@@ -100,7 +100,7 @@ func getResolverPk(private ed25519.PrivateKey) ed25519.PublicKey {
 }
 
 func getFileContent(fname string) []byte {
-	bytes, err := ioutil.ReadFile(fname)
+	bytes, err := os.ReadFile(fname)
 	if err != nil {
 		log.Fatalf("Fail read key file %s, err: %s", fname, err.Error())
 	}

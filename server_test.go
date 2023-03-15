@@ -262,8 +262,12 @@ func newTestServer(t require.TestingT, handler Handler) *testServer {
 	srv.udpConn, err = net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4zero, Port: 0})
 	require.NoError(t, err)
 
-	go s.ServeUDP(srv.udpConn)
-	go s.ServeTCP(srv.tcpListen)
+	go func() {
+		_ = s.ServeUDP(srv.udpConn)
+	}()
+	go func() {
+		_ = s.ServeTCP(srv.tcpListen)
+	}()
 	return srv
 }
 

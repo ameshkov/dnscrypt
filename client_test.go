@@ -74,7 +74,7 @@ func TestTimeoutOnDialExchange(t *testing.T) {
 
 	// Check error
 	require.NotNil(t, err)
-	require.True(t, os.IsTimeout(err))
+	require.ErrorIs(t, err, os.ErrDeadlineExceeded)
 }
 
 func TestFetchCertPublicResolvers(t *testing.T) {

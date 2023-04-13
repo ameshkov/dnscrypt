@@ -79,7 +79,9 @@ func (c *Client) DialStamp(stamp dnsstamps.ServerStamp) (*ResolverInfo, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	resolverInfo.SharedKey = sharedKey
+
 	return resolverInfo, nil
 }
 
@@ -251,7 +253,10 @@ func (c *Client) fetchCert(stamp dnsstamps.ServerStamp) (cert *Cert, err error) 
 		cert, err = parseCert(stamp, currentCert, providerName, strings.Join(txt.Txt, ""))
 		if err != nil {
 			log.Debug("[%s] bad cert: %s", providerName, err)
+
+			continue
 		} else if cert == nil {
+			// The certificate has been skipped due to Serial or EsVersion.
 			continue
 		}
 
@@ -262,7 +267,7 @@ func (c *Client) fetchCert(stamp dnsstamps.ServerStamp) (cert *Cert, err error) 
 	if foundValid {
 		return currentCert, nil
 	} else if err == nil {
-		err = errors.Error("no valid txt records")
+		err = fmt.Errorf("no valid txt records for provider %q", providerName)
 	}
 
 	return nil, err

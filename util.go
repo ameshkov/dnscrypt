@@ -42,7 +42,7 @@ import (
 // <56-bytes-query> 0x80 (0x00 * 199)
 func pad(packet []byte) []byte {
 	// get closest divisible by 64 to <packet-len> + 1 byte for 0x80
-	minQuestionSize := (len(packet)+1+63)/64 + 64
+	minQuestionSize := len(packet) + 1 + (64 - (len(packet)+1)%64)
 
 	// padded size can't be less than minUDPQuestionSize
 	minQuestionSize = max(minUDPQuestionSize, minQuestionSize)

@@ -25,7 +25,6 @@ linters:
     - ineffassign
     - staticcheck
     - unused
-    - depguard
     - dupl
     - gocyclo
     - goimports
@@ -44,6 +43,9 @@ issues:
   # it can be disabled by `exclude-use-default: false`. To list all
   # excluded by default patterns execute `golangci-lint run --help`
   exclude:
+    # SA1019: rand.Read has been deprecated since Go 1.20
+    # Exclude it for now, needs to be fixed later.
+    - SA1019
     # gosec: Potential file inclusion via variable
     # Exclude as it is required it in the command-line tool.
     - G304

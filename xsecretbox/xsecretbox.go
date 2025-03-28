@@ -4,17 +4,19 @@ import (
 	"crypto/subtle"
 	"errors"
 
-	"github.com/aead/chacha20/chacha"
-	"github.com/aead/poly1305"
+	"golang.org/x/crypto/chacha20"
+	"golang.org/x/crypto/poly1305"
 )
 
 const (
 	// KeySize is what the name suggests
-	KeySize = 32
+	KeySize = chacha20.KeySize
 	// NonceSize is what the name suggests
-	NonceSize = 24
+	NonceSize = chacha20.NonceSizeX
 	// TagSize is what the name suggests
-	TagSize = 16
+	TagSize = poly1305.TagSize
+	// BlockSize is what the name suggests
+	BlockSize = 64
 )
 
 // Seal does what the name suggests
@@ -26,22 +28,25 @@ func Seal(out, nonce, message, key []byte) []byte {
 		panic("unsupported key size")
 	}
 
-	var firstBlock [64]byte
-	cipher, _ := chacha.NewCipher(nonce, key, 20)
+	var firstBlock [BlockSize]byte
+	cipher, err := chacha20.NewUnauthenticatedCipher(key, nonce)
+	if err != nil {
+		panic(err)
+	}
 	cipher.XORKeyStream(firstBlock[:], firstBlock[:])
-	var polyKey [32]byte
-	copy(polyKey[:], firstBlock[:32])
+	var polyKey [KeySize]byte
+	copy(polyKey[:], firstBlock[:KeySize])
 
 	ret, out := sliceForAppend(out, TagSize+len(message))
 	firstMessageBlock := message
-	if len(firstMessageBlock) > 32 {
-		firstMessageBlock = firstMessageBlock[:32]
+	if len(firstMessageBlock) > (BlockSize - KeySize) {
+		firstMessageBlock = firstMessageBlock[:(BlockSize - KeySize)]
 	}
 
 	tagOut := out
 	out = out[poly1305.TagSize:]
 	for i, x := range firstMessageBlock {
-		out[i] = firstBlock[32+i] ^ x
+		out[i] = firstBlock[(BlockSize - KeySize)+i] ^ x
 	}
 	message = message[len(firstMessageBlock):]
 	ciphertext := out
@@ -51,7 +56,7 @@ func Seal(out, nonce, message, key []byte) []byte {
 	cipher.XORKeyStream(out, message)
 
 	var tag [TagSize]byte
-	hash := poly1305.New(polyKey)
+	hash := poly1305.New(&polyKey)
 	_, _ = hash.Write(ciphertext)
 	hash.Sum(tag[:0])
 	copy(tagOut, tag[:])
@@ -71,15 +76,18 @@ func Open(out, nonce, box, key []byte) ([]byte, error) {
 		return nil, errors.New("ciphertext is too short")
 	}
 
-	var firstBlock [64]byte
-	cipher, _ := chacha.NewCipher(nonce, key, 20)
+	var firstBlock [BlockSize]byte
+	cipher, err := chacha20.NewUnauthenticatedCipher(key, nonce)
+	if err != nil {
+		panic(err)
+	}
 	cipher.XORKeyStream(firstBlock[:], firstBlock[:])
-	var polyKey [32]byte
-	copy(polyKey[:], firstBlock[:32])
+	var polyKey [KeySize]byte
+	copy(polyKey[:], firstBlock[:KeySize])
 
 	var tag [TagSize]byte
 	ciphertext := box[TagSize:]
-	hash := poly1305.New(polyKey)
+	hash := poly1305.New(&polyKey)
 	_, _ = hash.Write(ciphertext)
 	hash.Sum(tag[:0])
 	if subtle.ConstantTimeCompare(tag[:], box[:TagSize]) != 1 {
@@ -89,11 +97,11 @@ func Open(out, nonce, box, key []byte) ([]byte, error) {
 	ret, out := sliceForAppend(out, len(ciphertext))
 
 	firstMessageBlock := ciphertext
-	if len(firstMessageBlock) > 32 {
-		firstMessageBlock = firstMessageBlock[:32]
+	if len(firstMessageBlock) > (BlockSize - KeySize) {
+		firstMessageBlock = firstMessageBlock[:(BlockSize - KeySize)]
 	}
 	for i, x := range firstMessageBlock {
-		out[i] = firstBlock[32+i] ^ x
+		out[i] = firstBlock[(BlockSize - KeySize)+i] ^ x
 	}
 	ciphertext = ciphertext[len(firstMessageBlock):]
 	out = out[len(firstMessageBlock):]

@@ -70,7 +70,7 @@ func (s *Server) ServeUDP(l *net.UDPConn) error {
 	// Track active goroutine
 	s.wg.Add(1)
 
-	s.Logger.Info("entering DNSCrypt UDP listening loop", "listen_addr", l.LocalAddr())
+	s.logger().Info("entering DNSCrypt UDP listening loop", "listen_addr", l.LocalAddr())
 
 	// Serialize the cert right away and prepare it to be sent to the client
 	certTxt, err := s.getCertTXT()
@@ -93,9 +93,9 @@ func (s *Server) ServeUDP(l *net.UDPConn) error {
 				continue
 			}
 			if isConnClosed(err) {
-				s.Logger.Info("UDP listener closed, exiting loop")
+				s.logger().Info("UDP listener closed, exiting loop")
 			} else {
-				s.Logger.Info("got error when reading from UDP", slogutil.KeyError, err)
+				s.logger().Info("got error when reading from UDP", slogutil.KeyError, err)
 			}
 			return err
 		}
@@ -178,7 +178,7 @@ func (s *Server) serveUDPMsg(b []byte, certTxt string, sess *dns.SessionUDP, l *
 		// is a plain DNS query requesting the certificate data
 		reply, err := s.handleHandshake(b, certTxt)
 		if err != nil {
-			s.Logger.Debug("failed to process a plain DNS query", slogutil.KeyError, err)
+			s.logger().Debug("failed to process a plain DNS query", slogutil.KeyError, err)
 		}
 		if err == nil {
 			// Ignore errors, we don't care and can't handle them anyway
@@ -198,14 +198,14 @@ func (s *Server) serveUDPMsg(b []byte, certTxt string, sess *dns.SessionUDP, l *
 			encrypt: s.encrypt,
 			req:     m,
 			query:   q,
-			logger:  s.Logger,
+			logger:  s.logger(),
 		}
 		err = s.serveDNS(rw, m)
 		if err != nil {
-			s.Logger.Debug("failed to serve DNS query", slogutil.KeyError, err)
+			s.logger().Debug("failed to serve DNS query", slogutil.KeyError, err)
 		}
 	} else {
-		s.Logger.Debug(
+		s.logger().Debug(
 			"failed to decrypt incoming message",
 			"len",
 			len(b),

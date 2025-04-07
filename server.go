@@ -94,7 +94,7 @@ func (s *Server) prepareShutdown() error {
 	defer s.lock.Unlock()
 
 	if !s.started {
-		s.Logger.Info("server is not started")
+		s.logger().Info("server is not started")
 
 		return ErrServerNotStarted
 	}
@@ -133,7 +133,7 @@ func (s *Server) prepareShutdown() error {
 // connections are processed and only after that it leaves the method.
 // If context deadline is specified, it will exit earlier.
 func (s *Server) Shutdown(ctx context.Context) error {
-	s.Logger.Info("shutting down the DNSCrypt server")
+	s.logger().Info("shutting down the DNSCrypt server")
 
 	err := s.prepareShutdown()
 	if err != nil {
@@ -144,7 +144,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	closed := make(chan struct{})
 	go func() {
 		s.wg.Wait()
-		s.Logger.Info("serve goroutines finished their work")
+		s.logger().Info("serve goroutines finished their work")
 		close(closed)
 	}()
 
@@ -152,9 +152,9 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	// Or for the context deadline
 	select {
 	case <-closed:
-		s.Logger.Info("DNSCrypt server has been stopped")
+		s.logger().Info("DNSCrypt server has been stopped")
 	case <-ctx.Done():
-		s.Logger.Info("DNSCrypt server shutdown has timed out")
+		s.logger().Info("DNSCrypt server shutdown has timed out")
 		err = ctx.Err()
 	}
 
@@ -171,10 +171,16 @@ func (s *Server) init() {
 	if s.UDPSize == 0 {
 		s.UDPSize = defaultUDPSize
 	}
+}
 
+// logger returns the logger instance of slog.Default() if it was not
+// configured.
+func (s *Server) logger() (l *slog.Logger) {
 	if s.Logger == nil {
-		s.Logger = slog.Default()
+		return slog.Default()
 	}
+
+	return s.Logger
 }
 
 // isStarted returns true if the server is processing queries right now
@@ -192,7 +198,7 @@ func (s *Server) serveDNS(rw ResponseWriter, r *dns.Msg) error {
 		return ErrInvalidQuery
 	}
 
-	s.Logger.Debug("handling a DNS query", "question", r.Question[0].Name)
+	s.logger().Debug("handling a DNS query", "question", r.Question[0].Name)
 
 	handler := s.Handler
 	if handler == nil {
@@ -201,7 +207,7 @@ func (s *Server) serveDNS(rw ResponseWriter, r *dns.Msg) error {
 
 	err := handler.ServeDNS(rw, r)
 	if err != nil {
-		s.Logger.Debug("error while handling a DNS query", slogutil.KeyError, err)
+		s.logger().Debug("error while handling a DNS query", slogutil.KeyError, err)
 
 		reply := &dns.Msg{}
 		reply.SetRcode(r, dns.RcodeServerFailure)

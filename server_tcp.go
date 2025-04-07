@@ -58,7 +58,7 @@ func (s *Server) ServeTCP(l net.Listener) error {
 		return err
 	}
 
-	s.Logger.Info("entering DNSCrypt TCP listening loop", "listenAddr", l.Addr())
+	s.logger().Info("entering DNSCrypt TCP listening loop", "listenAddr", l.Addr())
 
 	// Tracks TCP connection handling goroutines
 	tcpWg := &sync.WaitGroup{}
@@ -88,9 +88,9 @@ func (s *Server) ServeTCP(l net.Listener) error {
 				continue
 			}
 			if isConnClosed(err) {
-				s.Logger.Info("TCP listener closed, exiting loop")
+				s.logger().Info("TCP listener closed, exiting loop")
 			} else {
-				s.Logger.Info("got error when reading from UDP listen", slogutil.KeyError, err)
+				s.logger().Info("got error when reading from UDP listen", slogutil.KeyError, err)
 			}
 			break
 		}
@@ -188,7 +188,7 @@ func (s *Server) handleTCPMsg(b []byte, conn net.Conn, certTxt string) error {
 		encrypt: s.encrypt,
 		req:     m,
 		query:   q,
-		logger:  s.Logger,
+		logger:  s.logger(),
 	}
 	err = s.serveDNS(rw, m)
 	if err != nil {
@@ -213,7 +213,7 @@ func (s *Server) handleTCPConnection(conn net.Conn, certTxt string) error {
 
 		err = s.handleTCPMsg(b, conn, certTxt)
 		if err != nil {
-			s.Logger.Debug("failed to process a DNS query", slogutil.KeyError, err)
+			s.logger().Debug("failed to process a DNS query", slogutil.KeyError, err)
 
 			return err
 		}

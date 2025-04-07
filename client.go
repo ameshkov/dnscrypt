@@ -4,12 +4,13 @@ import (
 	"crypto/ed25519"
 	"encoding/binary"
 	"fmt"
+	"log/slog"
 	"net"
 	"strings"
 	"time"
 
 	"github.com/AdguardTeam/golibs/errors"
-	"github.com/AdguardTeam/golibs/log"
+	"github.com/AdguardTeam/golibs/logutil/slogutil"
 	"github.com/ameshkov/dnsstamps"
 	"github.com/miekg/dns"
 )
@@ -19,8 +20,12 @@ type Client struct {
 	Net     string        // protocol (can be "udp" or "tcp", by default - "udp")
 	Timeout time.Duration // read/write timeout
 
+	// Logger is a logger instance for Client. If not set, slog.Default() will
+	// be used.
+	Logger *slog.Logger
+
 	// UDPSize is the maximum size of a DNS response (or query) this client can
-	// sent or receive. If not set, we use dns.MinMsgSize by default.
+	// send or receive. If not set, we use dns.MinMsgSize by default.
 	UDPSize int
 }
 
@@ -250,9 +255,9 @@ func (c *Client) fetchCert(stamp dnsstamps.ServerStamp) (cert *Cert, err error) 
 			continue
 		}
 
-		cert, err = parseCert(stamp, currentCert, providerName, strings.Join(txt.Txt, ""))
+		cert, err = c.parseCert(stamp, currentCert, providerName, strings.Join(txt.Txt, ""))
 		if err != nil {
-			log.Debug("[%s] bad cert: %s", providerName, err)
+			c.logger().Debug("bad cert", "provider", providerName, slogutil.KeyError, err)
 
 			continue
 		} else if cert == nil {
@@ -275,7 +280,7 @@ func (c *Client) fetchCert(stamp dnsstamps.ServerStamp) (cert *Cert, err error) 
 
 // parseCert parses a certificate from its string form and returns it if it has
 // priority over currentCert.
-func parseCert(
+func (c *Client) parseCert(
 	stamp dnsstamps.ServerStamp,
 	currentCert *Cert,
 	providerName string,
@@ -292,7 +297,13 @@ func parseCert(
 		return nil, fmt.Errorf("deserializing cert for: %w", err)
 	}
 
-	log.Debug("[%s] fetched certificate %d", providerName, cert.Serial)
+	c.logger().Debug(
+		"fetched certificate",
+		"provider",
+		providerName,
+		"cert_serial",
+		cert.Serial,
+	)
 
 	if !cert.VerifyDate() {
 		return nil, ErrInvalidDate
@@ -303,7 +314,13 @@ func parseCert(
 	}
 
 	if cert.Serial < currentCert.Serial {
-		log.Debug("[%v] cert %d superseded by a previous certificate", providerName, cert.Serial)
+		c.logger().Debug(
+			"cert superseded by a previous certificate",
+			"provider",
+			providerName,
+			"cert_serial",
+			cert.Serial,
+		)
 
 		return nil, nil
 	}
@@ -313,15 +330,22 @@ func parseCert(
 	}
 
 	if cert.EsVersion <= currentCert.EsVersion {
-		log.Debug("[%v] keeping the previous, preferred crypto construction", providerName)
+		c.logger().Debug(
+			"keeping the current cert es version",
+			"provider",
+			providerName,
+		)
 
 		return nil, nil
 	}
 
-	log.Debug(
-		"[%v] upgrading the construction from %v to %v",
+	c.logger().Debug(
+		"upgrading the construction",
+		"provider",
 		providerName,
+		"es_version",
 		currentCert.EsVersion,
+		"new_es_version",
 		cert.EsVersion,
 	)
 
@@ -338,4 +362,12 @@ func (c *Client) maxQuerySize() int {
 	}
 
 	return dns.MinMsgSize
+}
+
+func (c *Client) logger() (l *slog.Logger) {
+	if c.Logger == nil {
+		return slog.Default()
+	}
+
+	return c.Logger
 }

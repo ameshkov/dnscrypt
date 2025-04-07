@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"sync"
 	"time"
 
-	"github.com/AdguardTeam/golibs/log"
+	"github.com/AdguardTeam/golibs/logutil/slogutil"
 	"github.com/miekg/dns"
 )
 
@@ -18,6 +19,7 @@ type TCPResponseWriter struct {
 	encrypt encryptionFunc
 	req     *dns.Msg
 	query   EncryptedQuery
+	logger  *slog.Logger
 }
 
 // type check
@@ -39,7 +41,8 @@ func (w *TCPResponseWriter) WriteMsg(m *dns.Msg) error {
 
 	res, err := w.encrypt(m, w.query)
 	if err != nil {
-		log.Tracef("Failed to encrypt the DNS query: %v", err)
+		w.logger.Debug("failed to encrypt the DNS query", slogutil.KeyError, err)
+
 		return err
 	}
 
@@ -55,7 +58,7 @@ func (s *Server) ServeTCP(l net.Listener) error {
 		return err
 	}
 
-	log.Info("Entering DNSCrypt TCP listening loop tcp://%s", l.Addr())
+	s.Logger.Info("entering DNSCrypt TCP listening loop", "listenAddr", l.Addr())
 
 	// Tracks TCP connection handling goroutines
 	tcpWg := &sync.WaitGroup{}
@@ -85,9 +88,9 @@ func (s *Server) ServeTCP(l net.Listener) error {
 				continue
 			}
 			if isConnClosed(err) {
-				log.Info("udpListen.ReadFrom() returned because we're reading from a closed connection, exiting loop")
+				s.Logger.Info("TCP listener closed, exiting loop")
 			} else {
-				log.Info("got error when reading from UDP listen: %s", err)
+				s.Logger.Info("got error when reading from UDP listen", slogutil.KeyError, err)
 			}
 			break
 		}
@@ -117,10 +120,11 @@ func (s *Server) ServeTCP(l net.Listener) error {
 }
 
 // prepareServeTCP prepares the server and listener to serving DNSCrypt
-func (s *Server) prepareServeTCP(l net.Listener) error {
+func (s *Server) prepareServeTCP(l net.Listener) (err error) {
 	// Check that server is properly configured
-	if !s.validate() {
-		return ErrServerConfig
+	err = s.validate()
+	if err != nil {
+		return err
 	}
 
 	// Protect shutdown-related fields
@@ -184,6 +188,7 @@ func (s *Server) handleTCPMsg(b []byte, conn net.Conn, certTxt string) error {
 		encrypt: s.encrypt,
 		req:     m,
 		query:   q,
+		logger:  s.Logger,
 	}
 	err = s.serveDNS(rw, m)
 	if err != nil {
@@ -208,7 +213,8 @@ func (s *Server) handleTCPConnection(conn net.Conn, certTxt string) error {
 
 		err = s.handleTCPMsg(b, conn, certTxt)
 		if err != nil {
-			log.Debug("failed to process DNS query: %v", err)
+			s.Logger.Debug("failed to process a DNS query", slogutil.KeyError, err)
+
 			return err
 		}
 

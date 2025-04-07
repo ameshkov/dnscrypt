@@ -3,12 +3,13 @@ package dnscrypt
 import (
 	"bytes"
 	"errors"
+	"log/slog"
 	"net"
 	"runtime"
 	"sync"
 	"time"
 
-	"github.com/AdguardTeam/golibs/log"
+	"github.com/AdguardTeam/golibs/logutil/slogutil"
 	"github.com/miekg/dns"
 	"golang.org/x/net/ipv4"
 	"golang.org/x/net/ipv6"
@@ -23,6 +24,7 @@ type UDPResponseWriter struct {
 	encrypt encryptionFunc  // DNSCrypt encryption function
 	req     *dns.Msg        // DNS query that was processed
 	query   EncryptedQuery  // DNSCrypt query properties
+	logger  *slog.Logger
 }
 
 // type check
@@ -44,7 +46,8 @@ func (w *UDPResponseWriter) WriteMsg(m *dns.Msg) error {
 
 	res, err := w.encrypt(m, w.query)
 	if err != nil {
-		log.Tracef("Failed to encrypt the DNS query: %v", err)
+		w.logger.Debug("failed to encrypt DNS query", slogutil.KeyError, err)
+
 		return err
 	}
 	_, err = dns.WriteToSessionUDP(w.udpConn, res, w.sess)
@@ -67,7 +70,7 @@ func (s *Server) ServeUDP(l *net.UDPConn) error {
 	// Track active goroutine
 	s.wg.Add(1)
 
-	log.Info("Entering DNSCrypt UDP listening loop on udp://%s", l.LocalAddr())
+	s.Logger.Info("entering DNSCrypt UDP listening loop", "listen_addr", l.LocalAddr())
 
 	// Serialize the cert right away and prepare it to be sent to the client
 	certTxt, err := s.getCertTXT()
@@ -90,9 +93,9 @@ func (s *Server) ServeUDP(l *net.UDPConn) error {
 				continue
 			}
 			if isConnClosed(err) {
-				log.Info("udpListen.ReadFrom() returned because we're reading from a closed connection, exiting loop")
+				s.Logger.Info("UDP listener closed, exiting loop")
 			} else {
-				log.Info("got error when reading from UDP listen: %s", err)
+				s.Logger.Info("got error when reading from UDP", slogutil.KeyError, err)
 			}
 			return err
 		}
@@ -113,14 +116,15 @@ func (s *Server) ServeUDP(l *net.UDPConn) error {
 }
 
 // prepareServeUDP prepares the server and listener to serving DNSCrypt
-func (s *Server) prepareServeUDP(l *net.UDPConn) error {
+func (s *Server) prepareServeUDP(l *net.UDPConn) (err error) {
 	// Check that server is properly configured
-	if !s.validate() {
-		return ErrServerConfig
+	err = s.validate()
+	if err != nil {
+		return err
 	}
 
 	// set UDP options to allow receiving OOB data
-	err := setUDPSocketOptions(l)
+	err = setUDPSocketOptions(l)
 	if err != nil {
 		return err
 	}
@@ -174,7 +178,7 @@ func (s *Server) serveUDPMsg(b []byte, certTxt string, sess *dns.SessionUDP, l *
 		// is a plain DNS query requesting the certificate data
 		reply, err := s.handleHandshake(b, certTxt)
 		if err != nil {
-			log.Tracef("failed to process a plain DNS query: %v", err)
+			s.Logger.Debug("failed to process a plain DNS query", slogutil.KeyError, err)
 		}
 		if err == nil {
 			// Ignore errors, we don't care and can't handle them anyway
@@ -194,13 +198,20 @@ func (s *Server) serveUDPMsg(b []byte, certTxt string, sess *dns.SessionUDP, l *
 			encrypt: s.encrypt,
 			req:     m,
 			query:   q,
+			logger:  s.Logger,
 		}
 		err = s.serveDNS(rw, m)
 		if err != nil {
-			log.Tracef("failed to process a DNS query: %v", err)
+			s.Logger.Debug("failed to serve DNS query", slogutil.KeyError, err)
 		}
 	} else {
-		log.Tracef("failed to decrypt incoming message len=%d: %v", len(b), err)
+		s.Logger.Debug(
+			"failed to decrypt incoming message",
+			"len",
+			len(b),
+			slogutil.KeyError,
+			err,
+		)
 	}
 }
 

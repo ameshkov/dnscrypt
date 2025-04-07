@@ -23,7 +23,6 @@ type ConvertWrapperArgs struct {
 
 // convertWrapper generates DNSCrypt configuration from both dnscrypt and server private keys
 func convertWrapper(args ConvertWrapperArgs) {
-
 	log.Info("Generating configuration for %s", args.ProviderName)
 
 	var rc = dnscrypt.ResolverConfig{

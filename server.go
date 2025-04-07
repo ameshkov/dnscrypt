@@ -2,12 +2,14 @@ package dnscrypt
 
 import (
 	"context"
+	"log/slog"
 	"net"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/AdguardTeam/golibs/log"
+	"github.com/AdguardTeam/golibs/errors"
+	"github.com/AdguardTeam/golibs/logutil/slogutil"
 	"github.com/miekg/dns"
 )
 
@@ -63,6 +65,10 @@ type Server struct {
 	// Handler to invoke. If nil, uses DefaultHandler.
 	Handler Handler
 
+	// Logger is a logger instance for Server. If not set, slog.Default() will
+	// be used.
+	Logger *slog.Logger
+
 	// make sure init is called only once
 	initOnce sync.Once
 
@@ -88,7 +94,8 @@ func (s *Server) prepareShutdown() error {
 	defer s.lock.Unlock()
 
 	if !s.started {
-		log.Info("Server is not started")
+		s.Logger.Info("server is not started")
+
 		return ErrServerNotStarted
 	}
 
@@ -126,7 +133,7 @@ func (s *Server) prepareShutdown() error {
 // connections are processed and only after that it leaves the method.
 // If context deadline is specified, it will exit earlier.
 func (s *Server) Shutdown(ctx context.Context) error {
-	log.Info("Shutting down the DNSCrypt server")
+	s.Logger.Info("shutting down the DNSCrypt server")
 
 	err := s.prepareShutdown()
 	if err != nil {
@@ -137,7 +144,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	closed := make(chan struct{})
 	go func() {
 		s.wg.Wait()
-		log.Info("Serve goroutines finished their work")
+		s.Logger.Info("serve goroutines finished their work")
 		close(closed)
 	}()
 
@@ -145,9 +152,9 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	// Or for the context deadline
 	select {
 	case <-closed:
-		log.Info("DNSCrypt server has been stopped")
+		s.Logger.Info("DNSCrypt server has been stopped")
 	case <-ctx.Done():
-		log.Info("DNSCrypt server shutdown has timed out")
+		s.Logger.Info("DNSCrypt server shutdown has timed out")
 		err = ctx.Err()
 	}
 
@@ -163,6 +170,10 @@ func (s *Server) init() {
 
 	if s.UDPSize == 0 {
 		s.UDPSize = defaultUDPSize
+	}
+
+	if s.Logger == nil {
+		s.Logger = slog.Default()
 	}
 }
 
@@ -181,7 +192,7 @@ func (s *Server) serveDNS(rw ResponseWriter, r *dns.Msg) error {
 		return ErrInvalidQuery
 	}
 
-	log.Tracef("Handling a DNS query: %s", r.Question[0].Name)
+	s.Logger.Debug("handling a DNS query", "question", r.Question[0].Name)
 
 	handler := s.Handler
 	if handler == nil {
@@ -190,7 +201,7 @@ func (s *Server) serveDNS(rw ResponseWriter, r *dns.Msg) error {
 
 	err := handler.ServeDNS(rw, r)
 	if err != nil {
-		log.Tracef("Error while handing a DNS query: %v", err)
+		s.Logger.Debug("error while handling a DNS query", slogutil.KeyError, err)
 
 		reply := &dns.Msg{}
 		reply.SetRcode(r, dns.RcodeServerFailure)
@@ -285,23 +296,20 @@ func (s *Server) handleHandshake(b []byte, certTxt string) ([]byte, error) {
 }
 
 // validate checks if the Server config is properly set
-func (s *Server) validate() bool {
+func (s *Server) validate() (err error) {
 	if s.ResolverCert == nil {
-		log.Error("ResolverCert must be set")
-		return false
+		return errors.Annotate(ErrServerConfig, "ResolverCert is required")
 	}
 
 	if !s.ResolverCert.VerifyDate() {
-		log.Error("ResolverCert date is not valid")
-		return false
+		return errors.Annotate(ErrServerConfig, "ResolverCert date is not valid")
 	}
 
 	if s.ProviderName == "" {
-		log.Error("ProviderName must be set")
-		return false
+		return errors.Annotate(ErrServerConfig, "ProviderName must be set")
 	}
 
-	return true
+	return nil
 }
 
 // getCertTXT serializes the cert TXT record that are to be sent to the client

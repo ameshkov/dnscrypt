@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/AdguardTeam/golibs/log"
 	"github.com/ameshkov/dnsstamps"
 	"golang.org/x/crypto/curve25519"
 )
@@ -46,8 +45,6 @@ type ResolverConfig struct {
 
 // CreateCert generates a signed Cert to be used by Server
 func (rc *ResolverConfig) CreateCert() (*Cert, error) {
-	log.Printf("Creating signed DNSCrypt certificate")
-
 	notAfter := time.Now()
 	if rc.CertificateTTL > 0 {
 		notAfter = notAfter.Add(rc.CertificateTTL)
@@ -75,7 +72,6 @@ func (rc *ResolverConfig) CreateCert() (*Cert, error) {
 	}
 
 	if len(resolverPk) != keySize || len(resolverSk) != keySize {
-		log.Printf("Short-term keys are not set, generating random ones")
 		sk, pk := generateRandomKeyPair()
 		resolverSk = sk[:]
 		resolverPk = pk[:]
@@ -92,8 +88,6 @@ func (rc *ResolverConfig) CreateCert() (*Cert, error) {
 
 	// sign the data
 	cert.Sign(privateKey)
-
-	log.Info("Signed cert: %s", cert.String())
 
 	// done
 	return cert, nil

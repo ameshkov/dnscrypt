@@ -45,7 +45,9 @@ func pad(packet []byte) []byte {
 	minQuestionSize := len(packet) + 1 + (64 - (len(packet)+1)%64)
 
 	// padded size can't be less than minUDPQuestionSize
-	minQuestionSize = max(minUDPQuestionSize, minQuestionSize)
+	if minUDPQuestionSize > minQuestionSize {
+		minQuestionSize = minUDPQuestionSize
+	}
 
 	packet = append(packet, 0x80)
 	for len(packet) < minQuestionSize {
@@ -88,13 +90,6 @@ func computeSharedKey(cryptoConstruction CryptoConstruction, secretKey *[keySize
 		return sharedKey, nil
 	}
 	return [keySize]byte{}, ErrEsVersion
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }
 
 func isDigit(b byte) bool { return b >= '0' && b <= '9' }

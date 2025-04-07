@@ -46,7 +46,7 @@ func Seal(out, nonce, message, key []byte) []byte {
 	tagOut := out
 	out = out[poly1305.TagSize:]
 	for i, x := range firstMessageBlock {
-		out[i] = firstBlock[(BlockSize - KeySize)+i] ^ x
+		out[i] = firstBlock[(BlockSize-KeySize)+i] ^ x
 	}
 	message = message[len(firstMessageBlock):]
 	ciphertext := out
@@ -101,7 +101,7 @@ func Open(out, nonce, box, key []byte) ([]byte, error) {
 		firstMessageBlock = firstMessageBlock[:(BlockSize - KeySize)]
 	}
 	for i, x := range firstMessageBlock {
-		out[i] = firstBlock[(BlockSize - KeySize)+i] ^ x
+		out[i] = firstBlock[(BlockSize-KeySize)+i] ^ x
 	}
 	ciphertext = ciphertext[len(firstMessageBlock):]
 	out = out[len(firstMessageBlock):]
